@@ -1,0 +1,105 @@
+name: code-debugger-env
+version: "1.0.0"
+description: >
+  A real-world Python code debugging environment where AI agents identify
+  bugs and provide corrected code. Covers runtime errors, logic bugs, and
+  critical security vulnerabilities (SQL injection, weak hashing, unsafe eval).
+  Graders execute fixed code in sandboxed subprocesses for fully deterministic,
+  reproducible scoring. Ideal for training code-review and security-aware agents.
+author: YOUR_HF_USERNAME
+tags:
+  - code-review
+  - debugging
+  - security
+  - python
+  - real-world
+  - openenv
+action_space:
+  type: object
+  description: "Agent submits bug line number, bug type classification, and complete fixed code"
+  properties:
+    bug_line:
+      type: integer
+      description: "1-indexed line number of the bug in the code snippet"
+    bug_type:
+      type: string
+      enum: ["syntax", "logic", "runtime", "security"]
+      description: "Category of the bug"
+    fixed_code:
+      type: string
+      description: "Complete corrected Python code (entire snippet, not just the fix)"
+    explanation:
+      type: string
+      description: "One-sentence explanation of the bug (optional)"
+observation_space:
+  type: object
+  properties:
+    code_snippet:
+      type: string
+      description: "Python code containing exactly one planted bug"
+    task_description:
+      type: string
+      description: "What the function should do when correctly implemented"
+    test_hint:
+      type: string
+      description: "Description of the test cases that will grade the fix"
+    feedback:
+      type: string
+      description: "Grader feedback from the previous attempt (empty on first step)"
+    attempt_number:
+      type: integer
+      description: "Current attempt number within this episode (1-3)"
+    score_so_far:
+      type: float
+      description: "Best score achieved so far in this episode (0.0-1.0)"
+    done:
+      type: boolean
+      description: "True when the episode has ended"
+    reward:
+      type: float
+      description: "Score for the most recent step (0.0-1.0)"
+reward:
+  type: float
+  min: 0.0
+  max: 1.0
+  description: >
+    Composite score: test_pass_rate * 0.75 (execution-based) +
+    correct_line_bonus 0.15 (within +/-2 lines) +
+    correct_type_bonus 0.10. Final score clipped to [0.0, 1.0].
+    Provides meaningful partial credit — agent is rewarded for
+    locating the bug correctly even if the fix is incomplete.
+tasks:
+  - id: easy_01
+    difficulty: easy
+    description: "Fix ZeroDivisionError in average calculator"
+  - id: easy_02
+    difficulty: easy
+    description: "Fix IndexError in palindrome checker"
+  - id: easy_03
+    difficulty: easy
+    description: "Fix missing assignment operator in vowel counter"
+  - id: medium_01
+    difficulty: medium
+    description: "Fix float vs integer bug in binary search"
+  - id: medium_02
+    difficulty: medium
+    description: "Fix wrong return value in recursive list flattener"
+  - id: medium_03
+    difficulty: medium
+    description: "Fix product initialised to 0 instead of 1"
+  - id: hard_01
+    difficulty: hard
+    description: "Fix SQL injection vulnerability"
+  - id: hard_02
+    difficulty: hard
+    description: "Replace broken MD5 password hashing with SHA-256"
+  - id: hard_03
+    difficulty: hard
+    description: "Replace dangerous eval() with safe AST-based parser"
+max_episode_steps: 3
+inference_timeout: 1200
+baseline_scores:
+  easy_avg: 0.5
+  medium_avg: 0.0
+  hard_avg: 0.0
+  overall_avg: 0.222
