@@ -6,7 +6,7 @@ description: >
   critical security vulnerabilities (SQL injection, weak hashing, unsafe eval).
   Graders execute fixed code in sandboxed subprocesses for fully deterministic,
   reproducible scoring. Ideal for training code-review and security-aware agents.
-author: YOUR_HF_USERNAME
+author: raunit19
 tags:
   - code-review
   - debugging
