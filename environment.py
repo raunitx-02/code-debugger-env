@@ -78,7 +78,7 @@ class CodeDebuggerEnvironment(Environment[CodeDebugAction, CodeDebugObservation,
         self._state.step_count += 1
 
         # Grade the submitted fix
-        score, feedback = grade(
+        score, feedback, info = grade(
             fixed_code=action.fixed_code,
             task=self._current_task,
             bug_line=action.bug_line,
@@ -89,10 +89,11 @@ class CodeDebuggerEnvironment(Environment[CodeDebugAction, CodeDebugObservation,
         if score > self._state.best_score:
             self._state.best_score = score
 
-        # End episode if max attempts reached OR near-perfect score
+        # End episode if max attempts reached, near-perfect score, or all regression tests fixed
         done = (
             self._state.step_count >= self._state.max_attempts
             or score >= 0.95
+            or info.get("done_signal", False)
         )
 
         return CodeDebugObservation(
@@ -104,6 +105,10 @@ class CodeDebuggerEnvironment(Environment[CodeDebugAction, CodeDebugObservation,
             score_so_far=self._state.best_score,
             done=done,
             reward=score,
+            code_smells=info.get("code_smells", []),
+            tests_fixed=info.get("tests_fixed", []),
+            tests_broken=info.get("tests_broken", []),
+            regression_penalty=info.get("regression_penalty", False),
         )
 
     @property

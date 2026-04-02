@@ -4,7 +4,7 @@ All three classes MUST inherit from the openenv.core base classes.
 """
 from openenv.core.env_server.interfaces import Action, Observation, State
 from pydantic import Field
-from typing import Optional
+from typing import Optional, List
 
 class CodeDebugAction(Action):
     """
@@ -32,6 +32,11 @@ class CodeDebugObservation(Observation):
     feedback: str = Field(default="", description="Feedback from previous step")
     attempt_number: int = Field(default=1, description="Current attempt (1, 2, or 3)")
     score_so_far: float = Field(default=0.0, description="Best score so far in this episode")
+    # ── Feature enrichment fields (populated after step() grading) ──────────
+    code_smells: List[str] = Field(default_factory=list, description="Code smells detected in submitted fix")
+    tests_fixed: List[str] = Field(default_factory=list, description="Failing tests now passing after fix")
+    tests_broken: List[str] = Field(default_factory=list, description="Passing tests broken by the fix")
+    regression_penalty: bool = Field(default=False, description="True if any previously passing test broke")
 
 class CodeDebugState(State):
     """
