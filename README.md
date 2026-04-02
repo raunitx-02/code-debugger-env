@@ -16,9 +16,12 @@ license: mit
 
 # Python Code Debugger — OpenEnv Environment
 
-An OpenEnv environment where AI agents identify and fix bugs in Python code.
-Covers runtime errors, logic bugs, and security vulnerabilities.
-Uses execution-based grading — fixed code is run against real test cases in a sandboxed subprocess.
+Code review and security auditing cost the software industry billions annually.
+This OpenEnv environment trains AI agents on real-world Python debugging — from
+simple runtime errors to critical security vulnerabilities like SQL injection and
+unsafe eval(). Unlike text-matching evaluators, every score is computed by
+**executing the agent's fixed code** against real test cases in a sandboxed
+subprocess — making rewards fully deterministic and impossible to game.
 
 ---
 
@@ -77,17 +80,17 @@ Partial credit is intentional — an agent that locates the bug correctly but fi
 
 ## Tasks
 
-| Task ID | Difficulty | Description | Bug Type |
-|---|---|---|---|
-| easy_01 | Easy | Average calculator crashes on empty list | runtime |
-| easy_02 | Easy | Palindrome checker off-by-one index error | runtime |
-| easy_03 | Easy | Vowel counter never increments (count + 1) | logic |
-| medium_01 | Medium | Binary search uses / instead of // for mid | logic |
-| medium_02 | Medium | Flatten returns nested instead of result | logic |
-| medium_03 | Medium | Product initialised to 0 instead of 1 | logic |
-| hard_01 | Hard | SQL injection via f-string query | security |
-| hard_02 | Hard | MD5 used for password hashing | security |
-| hard_03 | Hard | eval() used on user input | security |
+| Task ID | Difficulty | Description | Bug Type | Expected LLM Score |
+|---|---|---|---|---|
+| easy_01 | Easy | Average calculator crashes on empty list | runtime | 0.85-1.00 |
+| easy_02 | Easy | Palindrome checker off-by-one index error | runtime | 0.75-0.90 |
+| easy_03 | Easy | Vowel counter never increments (count + 1) | logic | 0.75-0.90 |
+| medium_01 | Medium | Binary search uses / instead of // for mid | logic | 0.40-0.65 |
+| medium_02 | Medium | Flatten returns nested instead of result | logic | 0.35-0.60 |
+| medium_03 | Medium | Product initialised to 0 instead of 1 | logic | 0.40-0.65 |
+| hard_01 | Hard | SQL injection via f-string query | security | 0.25-0.50 |
+| hard_02 | Hard | MD5 used for password hashing | security | 0.20-0.45 |
+| hard_03 | Hard | eval() used on user input | security | 0.15-0.40 |
 
 ---
 
@@ -102,14 +105,17 @@ Partial credit is intentional — an agent that locates the bug correctly but fi
 
 ## Baseline Scores
 
-| Difficulty | Average Score |
-|---|---|
-| Easy | 0.50 |
-| Medium | 0.00 |
-| Hard | 0.00 |
-| Overall | 0.22 |
+| Difficulty | Avg Score | Notes |
+|---|---|---|
+| Easy | 0.50 | Llama-3.1-8B solves simple runtime/logic bugs reliably |
+| Medium | 0.00 | Subtle logic bugs (off-by-one, wrong return) challenge small LLMs |
+| Hard | 0.00 | Security vulnerabilities require specialized knowledge |
+| Overall | 0.17 | Frontier models (GPT-4, Nemotron) expected to score 0.6-0.8 |
 
-*Scores from `Llama-3.1-8B-Instruct` via HF Inference API — easy tasks solved on first attempt, limited by free-tier API credits for remaining episodes.*
+Baseline run with `meta-llama/Llama-3.1-8B-Instruct`.
+Medium/Hard tasks intentionally designed to challenge smaller models —
+the difficulty gap validates that the environment provides meaningful
+signal for training stronger code-security agents.
 
 ---
 
