@@ -80,17 +80,20 @@ Partial credit is intentional — an agent that locates the bug correctly but fi
 
 ## Tasks
 
-| Task ID | Difficulty | Description | Bug Type | Expected LLM Score |
-|---|---|---|---|---|
-| easy_01 | Easy | Average calculator crashes on empty list | runtime | 0.85-1.00 |
-| easy_02 | Easy | Palindrome checker off-by-one index error | runtime | 0.75-0.90 |
-| easy_03 | Easy | Vowel counter never increments (count + 1) | logic | 0.75-0.90 |
-| medium_01 | Medium | Binary search uses / instead of // for mid | logic | 0.40-0.65 |
-| medium_02 | Medium | Flatten returns nested instead of result | logic | 0.35-0.60 |
-| medium_03 | Medium | Product initialised to 0 instead of 1 | logic | 0.40-0.65 |
-| hard_01 | Hard | SQL injection via f-string query | security | 0.25-0.50 |
-| hard_02 | Hard | MD5 used for password hashing | security | 0.20-0.45 |
-| hard_03 | Hard | eval() used on user input | security | 0.15-0.40 |
+| Task ID | Difficulty | Bug Type | Description |
+|---|---|---|---|
+| easy_01 | Easy | logic | Off-by-one error in list doubler |
+| easy_02 | Easy | runtime | IndexError in palindrome checker |
+| easy_03 | Easy | logic | Assignment error in vowel counter (count + 1 not stored) |
+| easy_04 | Easy | logic | Product initialized to 0 instead of 1 in multiply_list |
+| medium_01 | Medium | logic | Infinite recursion in recursive_sum |
+| medium_02 | Medium | runtime | Integer division error in binary search |
+| medium_03 | Medium | logic | Nested return instead of flat result in list flattener |
+| medium_04 | Medium | logic | Returns `seen` instead of `duplicates` in find_duplicates |
+| hard_01 | Hard | logic | Mutable default argument in class constructor |
+| hard_02 | Hard | security | SQL injection via f-string — use parameterized queries |
+| hard_03 | Hard | security | MD5 password hashing — replace with SHA-256 |
+| hard_04 | Hard | security | OS command injection via shell=True subprocess |
 
 ---
 
@@ -120,23 +123,28 @@ The environment provides clear signal for training stronger code-security agents
 ## Quick Start
 
 ```python
-from openenv.core import GenericEnvClient
+from openenv_core.env_client import GenericEnvClient
 
 env = GenericEnvClient(base_url="http://localhost:7860").sync()
 
 with env:
+    # Start a new episode
     result = env.reset()
     obs = result.observation
-    print(obs["code_snippet"])
+    print(obs["code_snippet"])      # buggy Python code
+    print(obs["task_description"])  # what it should do
+    print(obs["test_hint"])         # what tests will check
 
+    # Submit your fix
     action = {
         "bug_line": 5,
         "bug_type": "runtime",
         "fixed_code": "def calculate_average(numbers):\n    if not numbers:\n        return 0\n    return sum(numbers) / len(numbers)",
-        "explanation": "Added empty list guard before division"
+        "explanation": "Added empty list guard to prevent ZeroDivisionError"
     }
     result = env.step(action)
-    print(f"Score: {result.reward}")
+    print(f"Score: {result.reward}")       # 0.0 - 1.0
+    print(f"Done: {result.done}")
     print(f"Feedback: {result.observation['feedback']}")
 ```
 
@@ -177,4 +185,36 @@ Execution-based grading prevents agents from gaming the system with syntacticall
 
 Code review and security auditing are among the most expensive tasks in software engineering. Developers who miss SQL injection vulnerabilities, weak password hashing (MD5), unsafe eval(), or OS command injection expose organizations to breaches costing millions. This environment trains AI agents on the exact bug classes responsible for the majority of real-world CVEs — making it one of the most practically impactful RL training environments in the OpenEnv ecosystem.
 
-## Environment Architecture
+## Architecture
+┌─────────────────────────────────────────────────────────────┐
+│ HuggingFace Space │
+│ ┌──────────────┐ POST /reset ┌──────────────────────┐ │
+│ │ inference │ ─────────────► │ CodeDebugger │ │
+│ │ (LLM agent) │ │ Environment │ │
+│ │ │ ◄───────────── │ (environment.py) │ │
+│ │ │ observation │ │ │
+│ │ │ POST /step │ ┌────────────────┐ │ │
+│ │ │ ─────────────► │ │ grader.py │ │ │
+│ │ │ ◄───────────── │ │ Regression │ │ │
+│ │ │ reward+done │ │ Oracle + │ │ │
+│ └──────────────┘ │ │ Code Smell │ │ │
+│ │ │ Penalty │ │ │
+│ │ └────────────────┘ │ │
+│ └──────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+
+**Key Design Decisions:**
+- **Execution-based grading** — fixed code is actually run against test cases, not pattern-matched
+- **Regression Test Oracle** — both failing tests (must fix) and passing tests (must not break) are checked
+- **Code Smell Penalty** — 40% score reduction for `eval()`, `exec()`, `shell=True`, hardcoded secrets
+- **Multi-turn with feedback** — agent gets grader output after each step and can retry
+- **Difficulty tiers** — Easy (logic/runtime bugs), Medium (algorithm bugs), Hard (security vulnerabilities)
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `HF_TOKEN` | (required) | HuggingFace API token for LLM access |
+| `API_BASE_URL` | `https://router.huggingface.co/v1` | OpenAI-compatible inference endpoint |
+| `MODEL_NAME` | `meta-llama/Llama-3.1-8B-Instruct` | Model to use for inference |
+| `ENV_BASE_URL` | `http://localhost:7860` | URL of the running environment server |

@@ -107,7 +107,7 @@ tasks:
 max_episode_steps: 3
 inference_timeout: 1200
 baseline_scores:
-  easy_avg: 0.95
-  medium_avg: 0.90
-  hard_avg: 0.65
-  overall_avg: 0.84
+  easy_avg: 0.85
+  medium_avg: 0.72
+  hard_avg: 0.48
+  overall_avg: 0.68

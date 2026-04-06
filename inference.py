@@ -41,7 +41,7 @@ Example Output:
 
 
 def log_start(episode_num: int, task_id: str, model: str) -> None:
-    print(f"[START] episode={episode_num} task={task_id} env={BENCHMARK} model={model}", flush=True)
+    print(f"[START] task={task_id} env={BENCHMARK} model={model}", flush=True)
 
 
 def log_step(step: int, bug_type: str, bug_line: int, reward: float, done: bool, error: Optional[str]) -> None:

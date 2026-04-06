@@ -34,5 +34,26 @@ def list_tasks():
         for t in TASKS
     ]
 
+@app.get("/metadata")
+def get_metadata():
+    return {
+        "name": "code-debugger-env",
+        "version": "1.0.0",
+        "author": "raunit19",
+        "description": "A real-world Python code debugging environment where AI agents identify and fix bugs across 12 tasks spanning runtime errors, logic bugs, and critical security vulnerabilities.",
+        "tags": ["code-review", "debugging", "security", "python", "real-world", "openenv"],
+        "action_space": {
+            "type": "object",
+            "fields": ["bug_line", "bug_type", "fixed_code", "explanation"]
+        },
+        "observation_space": {
+            "type": "object",
+            "fields": ["code_snippet", "task_description", "test_hint", "feedback", "attempt_number", "score_so_far", "done", "reward"]
+        },
+        "reward_range": [0.0, 1.0],
+        "max_episode_steps": 3,
+        "num_tasks": 12
+    }
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7860)
