@@ -1,4 +1,14 @@
+---
+title: BugHunterRL
+emoji: 🐛
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # BugHunterRL — Reinforcement Learning Environment for Automated Code Debugging
+
 
 **BugHunterRL** is a high-fidelity Reinforcement Learning (RL) environment designed for training and evaluating Large Language Model (LLM) agents on real-world Python debugging and security auditing tasks. It simulates the iterative process of identifying bugs, applying fixes, and verifying them against a suite of regression tests.
 
