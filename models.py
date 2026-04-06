@@ -24,6 +24,7 @@ class CodeDebugObservation(Observation):
       - reward: float | None = None
       - metadata: Dict[str, Any] = {}
     """
+    task_id: str = Field(..., description="Unique ID of the current task")
     code_snippet: str = Field(..., description="Python code containing one bug")
     task_description: str = Field(..., description="What this function should do correctly")
     test_hint: str = Field(..., description="Description of test cases (not actual code)")

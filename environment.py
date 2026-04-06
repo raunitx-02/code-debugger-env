@@ -56,8 +56,9 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
-        # FIX 3 & 4: Ensure all fields are present and task_id is in metadata
+        # FIXED: Pass task_id first-class AND in metadata for client convenience
         return CodeDebugObservation(
+            task_id=task["task_id"],
             code_snippet=task["code_snippet"],
             task_description=task["task_description"],
             test_hint=task["test_hint"],
@@ -68,7 +69,7 @@ class CodeDebuggerEnvironment(Environment):
             done=False,
             reward=0.0,
             metadata={
-                "task_id": task["task_id"],  # Required for inference.py to load task context
+                "task_id": task["task_id"],  # Explicitly requested in metadata
             }
         )
 
@@ -104,6 +105,7 @@ class CodeDebuggerEnvironment(Environment):
         )
 
         return CodeDebugObservation(
+            task_id=self._current_task["task_id"],
             code_snippet=self._current_task["code_snippet"],
             task_description=self._current_task["task_description"],
             test_hint=self._current_task["test_hint"],
