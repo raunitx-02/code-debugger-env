@@ -110,10 +110,10 @@ Partial credit is intentional — an agent that locates the bug correctly but fi
 
 | Difficulty | Avg Score | Notes |
 |---|---|---|
-| Easy   | 0.85 | Solved reliably by feedback-driven loops |
-| Medium | 0.72 | Complex logic bugs handled via test-case feedback |
+| Easy   | 0.85 | Solved reliably by feedback-driven retry loop |
+| Medium | 0.72 | Complex logic bugs handled via test-case grader feedback |
 | Hard   | 0.48 | Security and isolation bugs challenge smaller models |
-| Overall | 0.68 | Consistent with openenv.yaml declared baseline |
+| Overall| 0.68 | Consistent with openenv.yaml declared baseline scores |
 
 Baseline run with `meta-llama/Llama-3.1-8B-Instruct`. 
 The environment provides clear signal for training stronger code-security agents.
