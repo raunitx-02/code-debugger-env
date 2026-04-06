@@ -11,7 +11,7 @@ tags:
   - debugging
 version: "1.0.0"
 author: "raunit19"
-license: "MIT"
+license: "mit"
 ---
 
 # Python Code Debugger — OpenEnv Environment
