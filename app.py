@@ -10,9 +10,10 @@ from environment import CodeDebuggerEnvironment
 from tasks import TASKS
 from fastapi import Request, Response
 
-# Instantiate the environment and store it for manual route access
+# Instantiate the environment
 env_instance = CodeDebuggerEnvironment()
 
+# FIX 1: Use the built-in OpenEnv app creator (it handles /reset, /step, /state).
 app = create_app(
     env_instance,
     CodeDebugAction,
@@ -20,49 +21,13 @@ app = create_app(
     env_name="code-debugger-env",
 )
 
-# FIX 4: Explicitly set app.state.env for the manual /reset route
+# Populate app.state for any manual extensions
 app.state.env = env_instance
 
 @app.get("/health")
 def health():
-    """FIX 1: Explicit health check for Docker and Hugging Face Spaces."""
+    """FIX 7: Health check returning simple status: ok."""
     return {"status": "ok"}
-
-@app.post("/reset")
-async def reset_env(request: Request):
-    """FIX: Robust /reset override to ensure 200 OK and valid OpenEnv schema."""
-    try:
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
-        
-        obs = app.state.env.reset(
-            seed=body.get("seed"),
-            episode_id=body.get("episode_id"),
-            task_id=body.get("task_id"),
-        )
-        
-        # Pydantic v2 model_dump
-        obs_dict = obs.model_dump()
-        reward = obs_dict.pop("reward", 0.0)
-        done = obs_dict.pop("done", False)
-        
-        # Ensure we return a strict OpenEnv-compliant dictionary
-        return {
-            "observation": obs_dict,
-            "reward": reward,
-            "done": done,
-            "info": {}  # Mandatory for some evaluators
-        }
-    except Exception as e:
-        # Fallback to prevent 500 errors
-        return {
-            "observation": {},
-            "reward": 0.0,
-            "done": False,
-            "info": {"error": f"Internal reset error: {str(e)}"}
-        }
 
 @app.get("/openenv.yaml")
 def get_openenv_yaml():
@@ -111,4 +76,5 @@ def get_metadata():
     }
 
 if __name__ == "__main__":
+    # FIX 6: Explicit uvicorn startup on port 7860
     uvicorn.run(app, host="0.0.0.0", port=7860)

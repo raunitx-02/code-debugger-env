@@ -56,6 +56,7 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
+        # FIX 3 & 4: Ensure all fields are present and task_id is in metadata
         return CodeDebugObservation(
             code_snippet=task["code_snippet"],
             task_description=task["task_description"],
@@ -65,7 +66,10 @@ class CodeDebuggerEnvironment(Environment):
             score_so_far=0.001,
             difficulty=task["difficulty"],
             done=False,
-            reward=0.0,  # FIX 2: Return 0.0 float instead of None for Pydantic compliance
+            reward=0.0,
+            metadata={
+                "task_id": task["task_id"],  # Required for inference.py to load task context
+            }
         )
 
     def step(
@@ -110,6 +114,7 @@ class CodeDebuggerEnvironment(Environment):
             done=done,
             reward=score,
             metadata={
+                "task_id": self._current_task["task_id"],
                 "code_smells": info.get("code_smells", []),
                 "tests_fixed": info.get("tests_fixed", []),
                 "tests_broken": info.get("tests_broken", []),
