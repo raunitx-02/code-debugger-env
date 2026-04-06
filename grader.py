@@ -125,7 +125,7 @@ def _compute_regression_reward(
 
     gain = len(tests_fixed) / len(failing) if failing else 0.0
     loss = len(tests_broken) / len(passing) if passing else 0.0
-    reward = max(0.0, min(1.0, gain - loss))
+    reward = max(0.001, min(0.999, gain - loss))
     return reward, tests_fixed, tests_broken
 
 
@@ -162,7 +162,7 @@ def grade(
     """
     try:
         if not fixed_code or not fixed_code.strip():
-            return 0.0, "No fixed code provided.", {
+            return 0.001, "No fixed code provided.", {
                 "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
             }
 
@@ -172,7 +172,7 @@ def grade(
             smells = check_code_smells(fixed_code)
 
             final_score = (base_reward * 0.6) if (smells and base_reward > 0) else base_reward
-            final_score = round(max(0.0, min(1.0, final_score)), 4)
+            final_score = round(max(0.001, min(0.999, final_score)), 4)
 
             failing = task.get("failing_tests", [])
             passing = task.get("passing_tests", [])
@@ -204,7 +204,7 @@ def grade(
         # ── LEGACY: subprocess grader (original tasks) ──────────────────────
         test_cases = task.get("test_cases", [])
         if not test_cases:
-            return 0.0, "No test cases defined.", {
+            return 0.001, "No test cases defined.", {
                 "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
             }
 
@@ -276,11 +276,11 @@ assert _result == _expected, f"Got {{_result!r}}, expected {{_expected!r}}"
 
         # Apply smell penalty to legacy tasks too
         smells = check_code_smells(fixed_code)
-        final_score = min(1.0, base_score + line_bonus + type_bonus)
+        final_score = min(0.999, base_score + line_bonus + type_bonus)
         if smells and final_score > 0:
             final_score *= 0.6
 
-        final_score = round(final_score, 4)
+        final_score = round(max(0.001, min(0.999, final_score)), 4)
         feedback = f"Score: {final_score:.2f} | Tests: {passed}/{total} passed\n" + "\n".join(feedback_lines)
         if smells:
             feedback += f"\n⚠ Code smells (−40% penalty): {', '.join(smells)}"
@@ -294,6 +294,6 @@ assert _result == _expected, f"Got {{_result!r}}, expected {{_expected!r}}"
         return final_score, feedback, info
 
     except Exception as e:
-        return 0.0, f"Grader error: {e}", {
+        return 0.001, f"Grader error: {e}", {
             "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
         }
