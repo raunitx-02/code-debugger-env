@@ -11,8 +11,12 @@ import subprocess
 import signal
 from typing import List, Any, Optional
 from openai import OpenAI
-# STEP 1: Fix import to match OpenEnv Phase-2 environment expectations
-from openenv_core.env_client import GenericEnvClient
+# STEP 1: Version-agnostic import to pass Phase-2 across different OpenEnv versions
+try:
+    from openenv_core.client import GenericEnvClient
+except ImportError:
+    from openenv_core.env_client import GenericEnvClient
+
 
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
