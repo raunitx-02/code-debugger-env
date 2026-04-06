@@ -1,8 +1,8 @@
 """
 models.py — Pydantic models for Code Debugger OpenEnv Environment
-All three classes MUST inherit from the openenv.core base classes.
+All three classes MUST inherit from the openenv_core base classes.
 """
-from openenv.core.env_server.interfaces import Action, Observation, State
+from openenv_core.env_server.interfaces import Action, Observation, State
 from pydantic import Field
 from typing import Optional, List
 

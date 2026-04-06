@@ -3,7 +3,7 @@ environment.py — Code Debugger OpenEnv Environment
 An AI agent receives Python code with a bug, identifies and fixes it.
 Supports up to 3 attempts per episode with feedback between attempts.
 """
-from openenv.core import Environment
+from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
 from tasks import TASKS
 from grader import grade

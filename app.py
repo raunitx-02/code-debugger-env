@@ -3,7 +3,7 @@ app.py — FastAPI server for Code Debugger OpenEnv Environment
 Runs on port 7860 (required for Hugging Face Spaces).
 """
 import uvicorn
-from openenv.core import create_app
+from openenv_core.env_server import create_app
 from models import CodeDebugAction, CodeDebugObservation
 from environment import CodeDebuggerEnvironment
 from tasks import TASKS

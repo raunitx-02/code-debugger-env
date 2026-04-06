@@ -11,7 +11,7 @@ import subprocess
 import signal
 from typing import List, Any, Optional
 from openai import OpenAI
-from openenv.core import GenericEnvClient
+from openenv_core.env_client import GenericEnvClient
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.1-8B-Instruct")
