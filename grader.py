@@ -125,7 +125,7 @@ def _compute_regression_reward(
 
     gain = len(tests_fixed) / len(failing) if failing else 0.0
     loss = len(tests_broken) / len(passing) if passing else 0.0
-    reward = max(-1.0, min(1.0, gain - loss))
+    reward = max(0.0, min(1.0, gain - loss))
     return reward, tests_fixed, tests_broken
 
 
@@ -172,7 +172,7 @@ def grade(
             smells = check_code_smells(fixed_code)
 
             final_score = (base_reward * 0.6) if (smells and base_reward > 0) else base_reward
-            final_score = round(max(-1.0, min(1.0, final_score)), 4)
+            final_score = round(max(0.0, min(1.0, final_score)), 4)
 
             failing = task.get("failing_tests", [])
             passing = task.get("passing_tests", [])

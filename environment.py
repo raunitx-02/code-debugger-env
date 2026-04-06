@@ -48,7 +48,7 @@ class CodeDebuggerEnvironment(Environment):
             step_count=0,
             task_id=task["task_id"],
             difficulty=task["difficulty"],
-            max_attempts=3,
+            max_attempts=5 if task.get("difficulty") == "hard" else 3,
             best_score=0.0,
         )
 
