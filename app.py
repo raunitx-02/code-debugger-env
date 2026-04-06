@@ -10,16 +10,52 @@ from environment import CodeDebuggerEnvironment
 from tasks import TASKS
 from fastapi import Request, Response
 
+# Instantiate the environment and store it for manual route access
+env_instance = CodeDebuggerEnvironment()
+
 app = create_app(
-    CodeDebuggerEnvironment,
+    env_instance,
     CodeDebugAction,
     CodeDebugObservation,
     env_name="code-debugger-env",
 )
 
+# FIX 4: Explicitly set app.state.env for the manual /reset route
+app.state.env = env_instance
+
+@app.get("/health")
+def health():
+    """FIX 1: Explicit health check for Docker and Hugging Face Spaces."""
+    return {"status": "ok"}
+
+@app.post("/reset")
+async def reset_env(request: Request):
+    """FIX 4: Manual /reset override to reliably handle task_id, seed, and episode_id."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    
+    obs = app.state.env.reset(
+        seed=body.get("seed"),
+        episode_id=body.get("episode_id"),
+        task_id=body.get("task_id"),
+    )
+    
+    # We use our own serialization to match openenv-core expect format
+    # which separates observation, reward, and done.
+    obs_dict = obs.model_dump()
+    reward = obs_dict.pop("reward", 0.0)
+    done = obs_dict.pop("done", False)
+    
+    return {
+        "observation": obs_dict,
+        "reward": reward,
+        "done": done,
+    }
+
 @app.get("/openenv.yaml")
 def get_openenv_yaml():
-    """BUG 1 Fix: Return openenv.yaml contents for the Phase 1 validator."""
     path = os.path.join(os.path.dirname(__file__), "openenv.yaml")
     if not os.path.exists(path):
         return {"error": "openenv.yaml not found at repo root"}

@@ -62,10 +62,10 @@ class CodeDebuggerEnvironment(Environment):
             test_hint=task["test_hint"],
             feedback="",
             attempt_number=1,
-            score_so_far=0.001,  # BUG 5 Fix
-            difficulty=task["difficulty"],  # BUG 4 Fix (Phase 2 compliance)
+            score_so_far=0.001,
+            difficulty=task["difficulty"],
             done=False,
-            reward=None,  # BUG Fixed: reset() must return reward=None
+            reward=0.0,  # FIX 2: Return 0.0 float instead of None for Pydantic compliance
         )
 
     def step(
