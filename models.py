@@ -31,12 +31,6 @@ class CodeDebugObservation(Observation):
     attempt_number: int = Field(default=1, description="Current attempt (1, 2, or 3)")
     score_so_far: float = Field(default=0.001, description="Best score so far in this episode")
     difficulty: str = Field(default="unknown", description="Difficulty tier of the task")
-    
-    # ── Feature enrichment fields (populated after step() grading) ──────────
-    code_smells: List[str] = Field(default_factory=list, description="Code smells detected in submitted fix")
-    tests_fixed: List[str] = Field(default_factory=list, description="Failing tests now passing after fix")
-    tests_broken: List[str] = Field(default_factory=list, description="Passing tests broken by the fix")
-    regression_penalty: bool = Field(default=False, description="True if any previously passing test broke")
 
 class CodeDebugState(State):
     """

@@ -35,7 +35,15 @@ class CodeDebuggerEnvironment(Environment):
         if seed is not None:
             random.seed(seed)
 
-        task = random.choice(TASKS)
+        # Support specific task_id selection (mandatory for agent strategy)
+        target_id = kwargs.get("task_id")
+        task = None
+        if target_id:
+            task = next((t for t in TASKS if t["task_id"] == target_id), None)
+        
+        if not task:
+            task = random.choice(TASKS)
+
         ep_id = episode_id or str(uuid.uuid4())[:8]
 
         self._current_task = task
@@ -45,7 +53,7 @@ class CodeDebuggerEnvironment(Environment):
             task_id=task["task_id"],
             difficulty=task["difficulty"],
             max_attempts=5 if task.get("difficulty") == "hard" else 3,
-            best_score=0.001,  # BUG 5 Fix (Phase 2 compliance)
+            best_score=0.001,
         )
 
         return CodeDebugObservation(
@@ -98,13 +106,15 @@ class CodeDebuggerEnvironment(Environment):
             feedback=feedback,
             attempt_number=self._state.step_count + 1,
             score_so_far=self._state.best_score,
-            difficulty=self._current_task["difficulty"],  # BUG 4 Fix
+            difficulty=self._current_task["difficulty"],
             done=done,
             reward=score,
-            code_smells=info.get("code_smells", []),
-            tests_fixed=info.get("tests_fixed", []),
-            tests_broken=info.get("tests_broken", []),
-            regression_penalty=info.get("regression_penalty", False),
+            metadata={
+                "code_smells": info.get("code_smells", []),
+                "tests_fixed": info.get("tests_fixed", []),
+                "tests_broken": info.get("tests_broken", []),
+                "regression_penalty": info.get("regression_penalty", False),
+            },
         )
 
     @property
