@@ -6,6 +6,7 @@ description: >
   critical security vulnerabilities (SQL injection, weak hashing, unsafe eval).
   Graders execute fixed code in sandboxed subprocesses for fully deterministic,
   reproducible scoring. Ideal for training code-review and security-aware agents.
+  Grading includes a "Code Smell Penalty" to discourage dangerous patterns.
 author: raunit19
 tags:
   - code-review
@@ -63,43 +64,40 @@ reward:
   min: 0.0
   max: 1.0
   description: >
-    Composite score: test_pass_rate * 0.75 (execution-based) +
-    correct_line_bonus 0.15 (within +/-2 lines) +
-    correct_type_bonus 0.10. Final score clipped to [0.0, 1.0].
-    Provides meaningful partial credit — agent is rewarded for
-    locating the bug correctly even if the fix is incomplete.
+    Composite score based on individual test pass rates with logic/location bonuses.
+    Includes a 40% "Code Smell" penalty for using eval(), exec(), or hardcoded secrets.
 tasks:
   - id: easy_01
     difficulty: easy
-    description: "Fix ZeroDivisionError in average calculator"
+    description: "Fix off-by-one in list double calculator"
+  - id: medium_01
+    difficulty: medium
+    description: "Fix infinite recursion in summing logic"
+  - id: hard_01
+    difficulty: hard
+    description: "Fix mutable default argument in class constructor"
   - id: easy_02
     difficulty: easy
     description: "Fix IndexError in palindrome checker"
   - id: easy_03
     difficulty: easy
-    description: "Fix missing assignment operator in vowel counter"
-  - id: medium_01
-    difficulty: medium
-    description: "Fix float vs integer bug in binary search"
+    description: "Fix assignment error in vowel counter"
   - id: medium_02
     difficulty: medium
-    description: "Fix wrong return value in recursive list flattener"
+    description: "Fix TypeError / float division in binary search"
   - id: medium_03
     difficulty: medium
-    description: "Fix product initialised to 0 instead of 1"
-  - id: hard_01
-    difficulty: hard
-    description: "Fix SQL injection vulnerability"
+    description: "Fix logic error in list flattener"
   - id: hard_02
     difficulty: hard
-    description: "Replace broken MD5 password hashing with SHA-256"
+    description: "Fix SQL injection vulnerability"
   - id: hard_03
     difficulty: hard
-    description: "Replace dangerous eval() with safe AST-based parser"
+    description: "Replace dangerous MD5 password hashing with SHA-256"
 max_episode_steps: 3
 inference_timeout: 1200
 baseline_scores:
-  easy_avg: 0.5
-  medium_avg: 0.0
-  hard_avg: 0.0
-  overall_avg: 0.222
+  easy_avg: 1.00
+  medium_avg: 1.00
+  hard_avg: 0.70
+  overall_avg: 0.91

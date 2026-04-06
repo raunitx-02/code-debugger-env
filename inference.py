@@ -93,17 +93,44 @@ def parse_llm_action(response_text: str) -> dict:
     return {"bug_line": 1, "bug_type": "logic", "fixed_code": "", "explanation": "parse failed"}
 
 
-# ── Episode runner ──────────────────────────────────────────────────
+def build_user_message(task_desc, hint, code, attempt, score_so_far, feedback):
+    msg = f"""Task description: {task_desc}
 
+Test requirements: {hint}
+
+Attempt {attempt}/{MAX_ATTEMPTS} | Score so far: {score_so_far:.2f}
+
+Code to debug (line numbers start at 1):
+```python
+{code}
+```"""
+    if feedback and attempt > 1:
+        # Extract actionable items from grader feedback for targeted retry
+        msg += f"""
+
+GRADER FEEDBACK FROM YOUR LAST ATTEMPT:
+{feedback}
+
+WHAT TO FIX IN THIS ATTEMPT:
+- Look at every line marked with ✗ above
+- If bug_line or bug_type was wrong, re-read the code carefully and correct them
+- If test cases failed, look at the EXACT error message and fix the logic
+- REMINDER: Do NOT use eval(), exec(), bare except:, or while True without break
+- Write the COMPLETE fixed code again from scratch"""
+
+    return msg
+
+
+# ── Episode runner ────────────────────────────────────────────────────────────
 def run_episode(llm: OpenAI, env_sync, episode_num: int) -> dict:
-    result = env_sync.reset()
-    obs = result.observation if hasattr(result, 'observation') else result
-
-    task_id    = "unknown"
+    result   = env_sync.reset()
+    obs      = result.observation if hasattr(result, "observation") else result
+    task_id  = "unknown"
     difficulty = "unknown"
+
     try:
         state      = env_sync.state()
-        state_dict = state if isinstance(state, dict) else (state.dict() if hasattr(state, 'dict') else {})
+        state_dict = state if isinstance(state, dict) else (state.dict() if hasattr(state, "dict") else {})
         task_id    = state_dict.get("task_id", "unknown")
         difficulty = state_dict.get("difficulty", "unknown")
     except Exception as e:
@@ -115,43 +142,33 @@ def run_episode(llm: OpenAI, env_sync, episode_num: int) -> dict:
     best_score  = 0.0
     total_steps = 0
     last_error  = None
+    max_attempts = 5 if difficulty == "hard" else MAX_ATTEMPTS
 
     try:
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        for attempt in range(1, max_attempts + 1):
+            # ── Unpack observation ────────────────────────────────────────
             if isinstance(obs, dict):
-                done        = obs.get("done", False)
-                code        = obs.get("code_snippet", "")
-                task_desc   = obs.get("task_description", "")
-                hint        = obs.get("test_hint", "")
-                feedback    = obs.get("feedback", "")
+                done         = obs.get("done", False)
+                code         = obs.get("code_snippet", "")
+                task_desc    = obs.get("task_description", "")
+                hint         = obs.get("test_hint", "")
+                feedback     = obs.get("feedback", "")
                 score_so_far = obs.get("score_so_far", 0.0)
             else:
-                done        = getattr(obs, "done", False)
-                code        = getattr(obs, "code_snippet", "")
-                task_desc   = getattr(obs, "task_description", "")
-                hint        = getattr(obs, "test_hint", "")
-                feedback    = getattr(obs, "feedback", "")
+                done         = getattr(obs, "done", False)
+                code         = getattr(obs, "code_snippet", "")
+                task_desc    = getattr(obs, "task_description", "")
+                hint         = getattr(obs, "test_hint", "")
+                feedback     = getattr(obs, "feedback", "")
                 score_so_far = getattr(obs, "score_so_far", 0.0)
 
             if done:
                 break
 
-            user_msg = f"""Task description: {task_desc}
+            user_msg   = build_user_message(task_desc, hint, code, attempt, score_so_far, feedback)
+            step_error = None
 
-Test requirements: {hint}
-
-Attempt {attempt}/{MAX_ATTEMPTS} | Score so far: {score_so_far:.2f}
-
-Code to debug (line numbers start at 1):
-```python
-{code}
-```"""
-            if feedback:
-                user_msg += f"\n\nFeedback from previous attempt:\n{feedback}"
-
-            last_error  = None
-            step_error  = None
-
+            # ── Call LLM ─────────────────────────────────────────────────
             try:
                 completion = llm.chat.completions.create(
                     model=MODEL_NAME,
@@ -159,8 +176,8 @@ Code to debug (line numbers start at 1):
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user",   "content": user_msg},
                     ],
-                    temperature=0.1,
-                    max_tokens=800,
+                    temperature=0,       # Fully deterministic — critical for accuracy
+                    max_tokens=1000,
                     stream=False,
                 )
                 response_text = completion.choices[0].message.content or ""
@@ -173,15 +190,18 @@ Code to debug (line numbers start at 1):
             bug_line = action.get("bug_line", 1)
             bug_type = action.get("bug_type", "logic")
 
+            # ── Submit action ─────────────────────────────────────────────
             try:
                 step_result = env_sync.step(action)
-                obs         = step_result.observation if hasattr(step_result, 'observation') else step_result
+                obs         = step_result.observation if hasattr(step_result, "observation") else step_result
                 reward      = (
-                    step_result.reward if hasattr(step_result, 'reward') and step_result.reward is not None
+                    step_result.reward
+                    if hasattr(step_result, "reward") and step_result.reward is not None
                     else (obs.get("reward") if isinstance(obs, dict) else getattr(obs, "reward", 0.0)) or 0.0
                 )
                 done_after  = (
-                    step_result.done if hasattr(step_result, 'done')
+                    step_result.done
+                    if hasattr(step_result, "done")
                     else (obs.get("done", False) if isinstance(obs, dict) else getattr(obs, "done", False))
                 )
             except Exception as e:
@@ -221,17 +241,19 @@ Code to debug (line numbers start at 1):
     }
 
 
-# ── Main ────────────────────────────────────────────────────────────
-
+# ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    print(f"[DEBUG] Starting Code Debugger inference | model={MODEL_NAME} | env={ENV_BASE_URL}", file=sys.stderr, flush=True)
+    print(
+        f"[DEBUG] Code Debugger Upgraded Inference | model={MODEL_NAME} | env={ENV_BASE_URL}",
+        file=sys.stderr, flush=True,
+    )
 
     server_proc = None
     if "localhost" in ENV_BASE_URL or "127.0.0.1" in ENV_BASE_URL:
         import urllib.request as _ur
         try:
             _ur.urlopen(ENV_BASE_URL + "/health", timeout=2)
-            print("[DEBUG] Server already running — skipping start.", file=sys.stderr, flush=True)
+            print("[DEBUG] Server already running.", file=sys.stderr, flush=True)
         except Exception:
             print("[DEBUG] Starting local server...", file=sys.stderr, flush=True)
             server_proc = start_local_server()
@@ -242,11 +264,20 @@ def main():
     results    = []
     start_time = time.time()
 
+    print(f"[DEBUG] Running {NUM_EPISODES} episodes...", file=sys.stderr, flush=True)
+
     with env_sync:
         for ep_num in range(1, NUM_EPISODES + 1):
             print(f"[DEBUG] Episode {ep_num}/{NUM_EPISODES}", file=sys.stderr, flush=True)
             ep_result = run_episode(llm_client, env_sync, ep_num)
             results.append(ep_result)
+            print(
+                f"[DEBUG]   → {ep_result['task_id']:15s} | "
+                f"{ep_result['difficulty']:6s} | "
+                f"score={ep_result['best_score']:.3f} | "
+                f"attempts={ep_result['attempts']}",
+                file=sys.stderr, flush=True,
+            )
 
     elapsed = time.time() - start_time
 
@@ -262,10 +293,31 @@ def main():
     hard_avg    = sum(by_diff["hard"])   / len(by_diff["hard"])   if by_diff["hard"]   else 0.0
 
     print(
+        f"\n[DEBUG] ══════════════════════════════════════\n"
+        f"[DEBUG] RESULTS SUMMARY\n"
+        f"[DEBUG] ══════════════════════════════════════",
+        file=sys.stderr, flush=True,
+    )
+    for r in results:
+        print(
+            f"[DEBUG]   {r['task_id']:15s} | {r['difficulty']:6s} | {r['best_score']:.3f}",
+            file=sys.stderr, flush=True,
+        )
+    print(
+        f"[DEBUG] ──────────────────────────────────────\n"
+        f"[DEBUG]   Easy average:    {easy_avg:.3f}\n"
+        f"[DEBUG]   Medium average:  {medium_avg:.3f}\n"
+        f"[DEBUG]   Hard average:    {hard_avg:.3f}\n"
+        f"[DEBUG]   Overall average: {overall_avg:.3f}\n"
+        f"[DEBUG]   Runtime:         {elapsed:.1f}s\n"
+        f"[DEBUG] ══════════════════════════════════════",
+        file=sys.stderr, flush=True,
+    )
+
+    print(
         f"easy_avg={easy_avg:.3f} medium_avg={medium_avg:.3f} "
         f"hard_avg={hard_avg:.3f} overall={overall_avg:.3f}",
-        file=sys.stderr,
-        flush=True,
+        file=sys.stderr, flush=True,
     )
 
     assert elapsed < 1200, f"FAIL: runtime {elapsed:.0f}s exceeds 20-minute limit"
