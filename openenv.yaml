@@ -1,12 +1,13 @@
 name: code-debugger-env
 version: "1.0.0"
 description: >
-  A real-world Python code debugging environment where AI agents identify
-  bugs and provide corrected code. Covers runtime errors, logic bugs, and
-  critical security vulnerabilities (SQL injection, weak hashing, unsafe eval).
-  Graders execute fixed code in sandboxed subprocesses for fully deterministic,
-  reproducible scoring. Ideal for training code-review and security-aware agents.
-  Grading includes a "Code Smell Penalty" to discourage dangerous patterns.
+  A real-world Python code debugging environment where AI agents identify bugs 
+  and provide corrected code. Covers 12 tasks across 4 difficulty-tiered bug categories: 
+  runtime errors, logic bugs, critical security vulnerabilities (SQL injection, OS command 
+  injection, weak hashing, unsafe eval), and mutable state bugs. Graders execute fixed code 
+  in sandboxed subprocesses for fully deterministic, reproducible scoring. Includes a 
+  Regression Test Oracle (failing+passing tests) for all 12 tasks and a Code Smell Penalty 
+  to discourage dangerous patterns.
 author: raunit19
 tags:
   - code-review
@@ -82,22 +83,31 @@ tasks:
   - id: easy_03
     difficulty: easy
     description: "Fix assignment error in vowel counter"
+  - id: easy_04
+    difficulty: easy
+    description: "Fix product initialised to 0 instead of 1 in multiply_list"
   - id: medium_02
     difficulty: medium
     description: "Fix TypeError / float division in binary search"
   - id: medium_03
     difficulty: medium
     description: "Fix logic error in list flattener"
+  - id: medium_04
+    difficulty: medium
+    description: "Fix wrong return variable (seen vs duplicates) in find_duplicates"
   - id: hard_02
     difficulty: hard
     description: "Fix SQL injection vulnerability"
   - id: hard_03
     difficulty: hard
     description: "Replace dangerous MD5 password hashing with SHA-256"
+  - id: hard_04
+    difficulty: hard
+    description: "Fix OS command injection via shell=True subprocess"
 max_episode_steps: 3
 inference_timeout: 1200
 baseline_scores:
-  easy_avg: 1.00
-  medium_avg: 1.00
-  hard_avg: 0.70
-  overall_avg: 0.91
+  easy_avg: 0.95
+  medium_avg: 0.90
+  hard_avg: 0.65
+  overall_avg: 0.84
