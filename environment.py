@@ -12,7 +12,7 @@ import random
 import uuid
 
 
-class CodeDebuggerEnvironment(Environment[CodeDebugAction, CodeDebugObservation, CodeDebugState]):
+class CodeDebuggerEnvironment(Environment):
     """
     Code Debugger: agent identifies and fixes Python bugs.
     12 tasks across easy/medium/hard difficulty (4 per tier).
