@@ -5,14 +5,20 @@ from environment import CodeDebuggerEnvironment
 from typing import Any, Dict
 
 # MONKEY-PATCH: Resolve openenv-core 0.1.1 serialization and health check priority.
-# These ensure numeric rewards and the mandatory 'status: ok' payload in Python 3.10+.
+# These ensure numeric rewards and the mandatory 'status: ok' payload.
 
-# Force numeric reward even if asdict() extraction misses it.
+# STEP 3: Force numeric reward in range 0.001 - 0.999 per validator rules
 original_serialize = http_server.HTTPEnvServer._serialize_observation
 def patched_serialize(self, observation: Any) -> Dict[str, Any]:
     res = original_serialize(self, observation)
-    if res.get("reward") is None: res["reward"] = 0.0
-    if res.get("done") is None: res["done"] = False
+    # Ensure reward is strictly between 0 and 1
+    if res.get("reward") is None or res.get("reward") <= 0.0:
+        res["reward"] = 0.001
+    elif res.get("reward") >= 1.0:
+        res["reward"] = 0.999
+    
+    if res.get("done") is None: 
+        res["done"] = False
     return res
 
 # Override health priority by patching register_routes directly.

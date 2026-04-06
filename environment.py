@@ -1,6 +1,7 @@
 """
 environment.py — BugHunterRL Environment
 Enhanced with multi-file project simulation and dynamic BugGeneration.
+Score range compliant: 0.001 to 0.999.
 """
 from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
@@ -72,7 +73,7 @@ class CodeDebuggerEnvironment(Environment):
             score_so_far=0.001,
             difficulty=task["difficulty"],
             done=False,
-            reward=0.0,
+            reward=0.001,
             metadata={"task_id": task["task_id"]}
         )
 
