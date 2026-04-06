@@ -3,20 +3,29 @@ app.py — FastAPI server for Code Debugger OpenEnv Environment
 Runs on port 7860 (required for Hugging Face Spaces).
 """
 import uvicorn
+import os
 from openenv_core.env_server import create_app
 from models import CodeDebugAction, CodeDebugObservation
 from environment import CodeDebuggerEnvironment
 from tasks import TASKS
-from fastapi import Request
+from fastapi import Request, Response
 
-# IMPORTANT: first argument is the Environment CLASS (a callable factory),
-# NOT an instance. openenv calls CodeDebuggerEnvironment() internally.
 app = create_app(
     CodeDebuggerEnvironment,
     CodeDebugAction,
     CodeDebugObservation,
     env_name="code-debugger-env",
 )
+
+@app.get("/openenv.yaml")
+def get_openenv_yaml():
+    """BUG 1 Fix: Return openenv.yaml contents for the Phase 1 validator."""
+    path = os.path.join(os.path.dirname(__file__), "openenv.yaml")
+    if not os.path.exists(path):
+        return {"error": "openenv.yaml not found at repo root"}
+    with open(path, "r") as f:
+        content = f.read()
+    return Response(content=content, media_type="application/x-yaml")
 
 @app.get("/info")
 def get_info():
@@ -50,7 +59,7 @@ def get_metadata():
             "type": "object",
             "fields": ["code_snippet", "task_description", "test_hint", "feedback", "attempt_number", "score_so_far", "done", "reward"]
         },
-        "reward_range": [0.0, 1.0],
+        "reward_range": [0.001, 0.999],
         "max_episode_steps": 3,
         "num_tasks": 12
     }

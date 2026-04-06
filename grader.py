@@ -9,7 +9,6 @@ import sys
 import textwrap
 from typing import Tuple, List, Dict, Any
 
-
 # ── Code Smell Checker ──────────────────────────────────────────────────────
 
 def check_code_smells(code: str) -> List[str]:
@@ -65,6 +64,7 @@ def check_code_smells(code: str) -> List[str]:
 
 # ── Safe exec() sandbox ─────────────────────────────────────────────────────
 
+# BUG 7 FIX: Include __import__ so test code can use imports (needed for hard tasks)
 _SAFE_BUILTINS: Dict[str, Any] = {
     "range": range, "len": len, "list": list, "dict": dict,
     "set": set, "tuple": tuple, "str": str, "int": int,
@@ -83,6 +83,7 @@ _SAFE_BUILTINS: Dict[str, Any] = {
     "ZeroDivisionError": ZeroDivisionError, "StopIteration": StopIteration,
     "Exception": Exception, "NotImplementedError": NotImplementedError,
     "None": None, "True": True, "False": False,
+    "__import__": __import__,  # Allow imports in test code
 }
 
 
@@ -106,7 +107,7 @@ def _run_single_test(submitted_code: str, test_code: str) -> Tuple[bool, str]:
 def _compute_regression_reward(
     fixed_code: str, task: dict
 ) -> Tuple[float, List[str], List[str]]:
-    """Regression oracle: reward = gain - loss, clamped to [-1, 1]."""
+    """Regression oracle: reward = gain - loss, clamped to (0.001, 0.999)."""
     failing: List[dict] = task.get("failing_tests", [])
     passing: List[dict] = task.get("passing_tests", [])
 
@@ -125,6 +126,8 @@ def _compute_regression_reward(
 
     gain = len(tests_fixed) / len(failing) if failing else 0.0
     loss = len(tests_broken) / len(passing) if passing else 0.0
+    
+    # BUG 2 FIX: Strict clamping (0.001, 0.999)
     reward = max(0.001, min(0.999, gain - loss))
     return reward, tests_fixed, tests_broken
 
@@ -156,12 +159,10 @@ def grade(
     """
     Grade the agent's fix.
     Returns (score, feedback_str, info_dict).
-    If task has failing_tests/passing_tests → regression oracle + smell penalty.
-    Otherwise → legacy subprocess grader.
-    info_dict always contains: code_smells, tests_fixed, tests_broken, regression_penalty.
     """
     try:
         if not fixed_code or not fixed_code.strip():
+            # BUG 2 FIX: 0.001 floor
             return 0.001, "No fixed code provided.", {
                 "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
             }
@@ -171,7 +172,8 @@ def grade(
             base_reward, tests_fixed, tests_broken = _compute_regression_reward(fixed_code, task)
             smells = check_code_smells(fixed_code)
 
-            final_score = (base_reward * 0.6) if (smells and base_reward > 0) else base_reward
+            final_score = (base_reward * 0.6) if (smells and base_reward > 0.001) else base_reward
+            # BUG 2 FIX: Strict clamping
             final_score = round(max(0.001, min(0.999, final_score)), 4)
 
             failing = task.get("failing_tests", [])
@@ -204,6 +206,7 @@ def grade(
         # ── LEGACY: subprocess grader (original tasks) ──────────────────────
         test_cases = task.get("test_cases", [])
         if not test_cases:
+            # BUG 2 FIX: 0.001 floor
             return 0.001, "No test cases defined.", {
                 "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
             }
@@ -276,24 +279,29 @@ assert _result == _expected, f"Got {{_result!r}}, expected {{_expected!r}}"
 
         # Apply smell penalty to legacy tasks too
         smells = check_code_smells(fixed_code)
+        # BUG 2 FIX: Cap at 0.999
         final_score = min(0.999, base_score + line_bonus + type_bonus)
-        if smells and final_score > 0:
+        if smells and final_score > 0.001:
             final_score *= 0.6
 
+        # BUG 2 FIX: Floor/Cap + Round
         final_score = round(max(0.001, min(0.999, final_score)), 4)
         feedback = f"Score: {final_score:.2f} | Tests: {passed}/{total} passed\n" + "\n".join(feedback_lines)
         if smells:
             feedback += f"\n⚠ Code smells (−40% penalty): {', '.join(smells)}"
 
+        # BUG 6 FIX: done_signal for legacy
         info = {
             "code_smells": smells,
             "tests_fixed": [],
             "tests_broken": [],
             "regression_penalty": False,
+            "done_signal": (passed == total and total > 0),
         }
         return final_score, feedback, info
 
     except Exception as e:
+        # BUG 2 FIX: 0.001 floor
         return 0.001, f"Grader error: {e}", {
             "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
         }

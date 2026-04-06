@@ -1,7 +1,7 @@
 """
 environment.py — Code Debugger OpenEnv Environment
 An AI agent receives Python code with a bug, identifies and fixes it.
-Supports up to 3 attempts per episode with feedback between attempts.
+Multi-turn: up to 3 attempts (5 for hard) with feedback.
 """
 from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
@@ -11,17 +11,13 @@ from typing import Optional
 import random
 import uuid
 
-
 class CodeDebuggerEnvironment(Environment):
     """
     Code Debugger: agent identifies and fixes Python bugs.
     12 tasks across easy/medium/hard difficulty (4 per tier).
     Multi-turn: up to 3 attempts per episode with feedback.
-    Hard tasks get 5 attempts. Execution-based grading via subprocess sandbox.
-    Regression Test Oracle with failing+passing tests for all 12 tasks.
-    Code Smell Penalty (-40%) for eval(), exec(), shell=True, hardcoded secrets.
+    Hard tasks get 5 attempts. Execution-based grading via sandbox.
     """
-
     SUPPORTS_CONCURRENT_SESSIONS = False
 
     def __init__(self):
@@ -49,7 +45,7 @@ class CodeDebuggerEnvironment(Environment):
             task_id=task["task_id"],
             difficulty=task["difficulty"],
             max_attempts=5 if task.get("difficulty") == "hard" else 3,
-            best_score=0.0,
+            best_score=0.001,  # BUG 5 Fix (Phase 2 compliance)
         )
 
         return CodeDebugObservation(
@@ -58,9 +54,10 @@ class CodeDebuggerEnvironment(Environment):
             test_hint=task["test_hint"],
             feedback="",
             attempt_number=1,
-            score_so_far=0.0,
+            score_so_far=0.001,  # BUG 5 Fix
+            difficulty=task["difficulty"],  # BUG 4 Fix (Phase 2 compliance)
             done=False,
-            reward=None,
+            reward=0.001,  # BUG 2 Fix (Phase 2 compliance)
         )
 
     def step(
@@ -69,17 +66,13 @@ class CodeDebuggerEnvironment(Environment):
         timeout_s: Optional[float] = None,
         **kwargs
     ) -> CodeDebugObservation:
-        """
-        Grade the agent's fix and return updated observation.
-        reward and done are set directly on the returned Observation object.
-        """
+        """Grade the agent's fix and return updated observation."""
         if self._state is None or self._current_task is None:
-            # Auto-reset: HTTP server may call step() on a fresh env instance
             self.reset()
 
         self._state.step_count += 1
 
-        # Grade the submitted fix
+        # Grade the submitted fix (grader now handles clamping)
         score, feedback, info = grade(
             fixed_code=action.fixed_code,
             task=self._current_task,
@@ -87,11 +80,11 @@ class CodeDebuggerEnvironment(Environment):
             bug_type=action.bug_type,
         )
 
-        # Track best score across all attempts this episode
+        # Track best score
         if score > self._state.best_score:
             self._state.best_score = score
 
-        # End episode if max attempts reached, near-perfect score, or all regression tests fixed
+        # End episode
         done = (
             self._state.step_count >= self._state.max_attempts
             or score >= 0.95
@@ -105,6 +98,7 @@ class CodeDebuggerEnvironment(Environment):
             feedback=feedback,
             attempt_number=self._state.step_count + 1,
             score_so_far=self._state.best_score,
+            difficulty=self._current_task["difficulty"],  # BUG 4 Fix
             done=done,
             reward=score,
             code_smells=info.get("code_smells", []),
@@ -115,12 +109,10 @@ class CodeDebuggerEnvironment(Environment):
 
     @property
     def state(self) -> CodeDebugState:
-        """Return current episode state."""
         if self._state is None:
             return CodeDebugState()
         return self._state
 
     def close(self) -> None:
-        """Clean up resources."""
         self._current_task = None
         self._state = None
