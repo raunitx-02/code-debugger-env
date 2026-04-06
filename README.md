@@ -172,3 +172,9 @@ Execution-based grading prevents agents from gaming the system with syntacticall
 
 - Single-function snippets only — does not cover multi-file bugs
 - Security grading uses pattern matching plus code execution, not formal verification
+
+## Why This Matters
+
+Code review and security auditing are among the most expensive tasks in software engineering. Developers who miss SQL injection vulnerabilities, weak password hashing (MD5), unsafe eval(), or OS command injection expose organizations to breaches costing millions. This environment trains AI agents on the exact bug classes responsible for the majority of real-world CVEs — making it one of the most practically impactful RL training environments in the OpenEnv ecosystem.
+
+## Environment Architecture

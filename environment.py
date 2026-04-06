@@ -15,9 +15,11 @@ import uuid
 class CodeDebuggerEnvironment(Environment[CodeDebugAction, CodeDebugObservation, CodeDebugState]):
     """
     Code Debugger: agent identifies and fixes Python bugs.
-    9 tasks across easy/medium/hard difficulty.
+    12 tasks across easy/medium/hard difficulty (4 per tier).
     Multi-turn: up to 3 attempts per episode with feedback.
-    Execution-based grading via subprocess sandbox.
+    Hard tasks get 5 attempts. Execution-based grading via subprocess sandbox.
+    Regression Test Oracle with failing+passing tests for all 12 tasks.
+    Code Smell Penalty (-40%) for eval(), exec(), shell=True, hardcoded secrets.
     """
 
     SUPPORTS_CONCURRENT_SESSIONS = False

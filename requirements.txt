@@ -1,5 +1,5 @@
-openenv-core
-fastapi
-uvicorn[standard]
-pydantic>=2
-openai
+openenv-core>=0.1.0
+fastapi>=0.110.0,<1.0.0
+uvicorn[standard]>=0.29.0,<1.0.0
+pydantic>=2.0.0,<3.0.0
+openai>=1.0.0,<2.0.0
