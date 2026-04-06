@@ -57,7 +57,7 @@ class CodeDebuggerEnvironment(Environment):
             score_so_far=0.001,  # BUG 5 Fix
             difficulty=task["difficulty"],  # BUG 4 Fix (Phase 2 compliance)
             done=False,
-            reward=0.001,  # BUG 2 Fix (Phase 2 compliance)
+            reward=None,  # BUG Fixed: reset() must return reward=None
         )
 
     def step(
