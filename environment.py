@@ -56,7 +56,7 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
-        # FIXED: Pass task_id first-class AND in metadata for client convenience
+        # STEP 2: Return formatted observation with metadata for task identification
         return CodeDebugObservation(
             task_id=task["task_id"],
             code_snippet=task["code_snippet"],
@@ -68,9 +68,7 @@ class CodeDebuggerEnvironment(Environment):
             difficulty=task["difficulty"],
             done=False,
             reward=0.0,
-            metadata={
-                "task_id": task["task_id"],  # Explicitly requested in metadata
-            }
+            metadata={"task_id": task["task_id"]}
         )
 
     def step(

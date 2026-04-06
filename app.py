@@ -1,80 +1,45 @@
-"""
-app.py — FastAPI server for Code Debugger OpenEnv Environment
-Runs on port 7860 (required for Hugging Face Spaces).
-"""
 import uvicorn
-import os
-from openenv_core.env_server import create_app
+from openenv_core.env_server import create_app, http_server
 from models import CodeDebugAction, CodeDebugObservation
 from environment import CodeDebuggerEnvironment
-from tasks import TASKS
-from fastapi import Request, Response
+from typing import Any, Dict
+
+# MONKEY-PATCH: Resolve openenv-core 0.1.1 serialization and health check priority.
+# These ensure numeric rewards and the mandatory 'status: ok' payload in Python 3.10+.
+
+# Force numeric reward even if asdict() extraction misses it.
+original_serialize = http_server.HTTPEnvServer._serialize_observation
+def patched_serialize(self, observation: Any) -> Dict[str, Any]:
+    res = original_serialize(self, observation)
+    if res.get("reward") is None: res["reward"] = 0.0
+    if res.get("done") is None: res["done"] = False
+    return res
+
+# Override health priority by patching register_routes directly.
+original_register = http_server.HTTPEnvServer.register_routes
+def patched_register(self, app: Any) -> None:
+    original_register(self, app)
+    from fastapi.routing import APIRoute
+    # Manually filter existing /health route so our new one takes precedence.
+    app.router.routes = [r for r in app.router.routes if not (isinstance(r, APIRoute) and r.path == "/health")]
+    @app.get("/health")
+    def health(): return {"status": "ok"}
+
+# Apply the patches to the framework classes before instantiation.
+http_server.HTTPEnvServer._serialize_observation = patched_serialize
+http_server.HTTPEnvServer.register_routes = patched_register
 
 # Instantiate the environment
-env_instance = CodeDebuggerEnvironment()
+env = CodeDebuggerEnvironment()
 
-# FIX 1: Use the built-in OpenEnv app creator (it handles /reset, /step, /state).
+# Step 1 Minimal Server (now fully compliant via runtime patching)
 app = create_app(
-    env_instance,
+    env,
     CodeDebugAction,
     CodeDebugObservation,
-    env_name="code-debugger-env",
+    env_name="code-debugger-env"
 )
 
-# Populate app.state for any manual extensions
-app.state.env = env_instance
-
-@app.get("/health")
-def health():
-    """FIX 7: Health check returning simple status: ok."""
-    return {"status": "ok"}
-
-@app.get("/openenv.yaml")
-def get_openenv_yaml():
-    path = os.path.join(os.path.dirname(__file__), "openenv.yaml")
-    if not os.path.exists(path):
-        return {"error": "openenv.yaml not found at repo root"}
-    with open(path, "r") as f:
-        content = f.read()
-    return Response(content=content, media_type="application/x-yaml")
-
-@app.get("/info")
-def get_info():
-    return {
-        "name": "code-debugger-env",
-        "version": "1.0.0",
-        "author": "raunit19",
-        "description": "Professional Python debugging and security auditing environment with 12 tasks.",
-    }
-
-@app.get("/tasks")
-def list_tasks():
-    return [
-        {"id": t["task_id"], "difficulty": t["difficulty"], "description": t["task_description"][:100]}
-        for t in TASKS
-    ]
-
-@app.get("/metadata")
-def get_metadata():
-    return {
-        "name": "code-debugger-env",
-        "version": "1.0.0",
-        "author": "raunit19",
-        "description": "A real-world Python code debugging environment where AI agents identify and fix bugs across 12 tasks spanning runtime errors, logic bugs, and critical security vulnerabilities.",
-        "tags": ["code-review", "debugging", "security", "python", "real-world", "openenv"],
-        "action_space": {
-            "type": "object",
-            "fields": ["bug_line", "bug_type", "fixed_code", "explanation"]
-        },
-        "observation_space": {
-            "type": "object",
-            "fields": ["code_snippet", "task_description", "test_hint", "feedback", "attempt_number", "score_so_far", "done", "reward"]
-        },
-        "reward_range": [0.001, 0.999],
-        "max_episode_steps": 3,
-        "num_tasks": 12
-    }
-
 if __name__ == "__main__":
-    # FIX 6: Explicit uvicorn startup on port 7860
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    # Standard startup on port 7860
+    uvicorn.run("app:app", host="0.0.0.0", port=7860)
