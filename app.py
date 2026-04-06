@@ -40,6 +40,9 @@ app = create_app(
     env_name="code-debugger-env"
 )
 
+def main():
+    """Server entrypoint for multi-mode deployment as required by openenv validate."""
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
 if __name__ == "__main__":
-    # Standard startup on port 7860
-    uvicorn.run("app:app", host="0.0.0.0", port=7860)
+    main()
