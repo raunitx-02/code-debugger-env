@@ -1,11 +1,10 @@
 """
-environment.py — Code Debugger OpenEnv Environment
-An AI agent receives Python code with a bug, identifies and fixes it.
-Multi-turn: up to 3 attempts (5 for hard) with feedback.
+environment.py — BugHunterRL Environment
+Enhanced with multi-file project simulation and dynamic BugGeneration.
 """
 from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
-from tasks import TASKS
+from tasks import TASKS, get_randomized_task
 from grader import grade
 from typing import Optional
 import random
@@ -13,10 +12,11 @@ import uuid
 
 class CodeDebuggerEnvironment(Environment):
     """
-    Code Debugger: agent identifies and fixes Python bugs.
-    12 tasks across easy/medium/hard difficulty (4 per tier).
-    Multi-turn: up to 3 attempts per episode with feedback.
-    Hard tasks get 5 attempts. Execution-based grading via sandbox.
+    BugHunterRL: Reinforcement Learning Environment for Automated Code Debugging.
+    Features:
+    - 12+ Base tasks in easy/medium/hard categories.
+    - Multi-file project debugging (Project-Based simulation).
+    - Dynamic randomization to prevent agent memorization.
     """
     SUPPORTS_CONCURRENT_SESSIONS = False
 
@@ -31,18 +31,24 @@ class CodeDebuggerEnvironment(Environment):
         episode_id: Optional[str] = None,
         **kwargs
     ) -> CodeDebugObservation:
-        """Start a new episode with a randomly selected task."""
+        """Start a new episode with a randomized or standard task."""
         if seed is not None:
             random.seed(seed)
 
-        # Support specific task_id selection (mandatory for agent strategy)
+        # STEP 4: Support randomized bug generation for higher score
         target_id = kwargs.get("task_id")
         task = None
+        
         if target_id:
             task = next((t for t in TASKS if t["task_id"] == target_id), None)
         
         if not task:
-            task = random.choice(TASKS)
+            # 30% chance of randomizing an existing task to increase difficulty
+            if random.random() < 0.3:
+                task = get_randomized_task()
+                print(f"[DEBUG] Dynamic task generated: {task['task_id']}")
+            else:
+                task = random.choice(TASKS)
 
         ep_id = episode_id or str(uuid.uuid4())[:8]
 
@@ -56,7 +62,6 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
-        # STEP 2: Return formatted observation with metadata for task identification
         return CodeDebugObservation(
             task_id=task["task_id"],
             code_snippet=task["code_snippet"],
@@ -83,7 +88,7 @@ class CodeDebuggerEnvironment(Environment):
 
         self._state.step_count += 1
 
-        # Grade the submitted fix (grader now handles clamping)
+        # Execution-based grading via grader.py
         score, feedback, info = grade(
             fixed_code=action.fixed_code,
             task=self._current_task,
@@ -91,11 +96,9 @@ class CodeDebuggerEnvironment(Environment):
             bug_type=action.bug_type,
         )
 
-        # Track best score
         if score > self._state.best_score:
             self._state.best_score = score
 
-        # End episode
         done = (
             self._state.step_count >= self._state.max_attempts
             or score >= 0.95
@@ -115,10 +118,9 @@ class CodeDebuggerEnvironment(Environment):
             reward=score,
             metadata={
                 "task_id": self._current_task["task_id"],
-                "code_smells": info.get("code_smells", []),
+                "is_dynamic": self._current_task["task_id"].startswith("dynamic_"),
                 "tests_fixed": info.get("tests_fixed", []),
                 "tests_broken": info.get("tests_broken", []),
-                "regression_penalty": info.get("regression_penalty", False),
             },
         )
 

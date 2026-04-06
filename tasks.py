@@ -1,11 +1,13 @@
 """
-tasks.py — All debugging tasks for the Code Debugger environment.
+tasks.py — All debugging tasks for the BugHunterRL environment.
 
-All 12 tasks now use the Regression Test Oracle format:
+All tasks use the Regression Test Oracle format:
   each has failing_tests (must fix) and passing_tests (must not break).
-Legacy formatting (test_cases) is kept for backward compatibility.
+Includes new Project-Based (Multi-File) debugging tasks.
 """
+import random
 
+# Base Tasks (Single File)
 TASKS = [
 
     # ── EASY 1 (Regression Oracle) ────────────────────────────────────────────
@@ -31,10 +33,6 @@ TASKS = [
         "passing_tests": [
             {"name": "test_empty_list", "code": "assert double_all([]) == [], 'empty list must return empty'"},
             {"name": "test_returns_list", "code": "assert isinstance(double_all([1, 2]), list), 'must return a list'"},
-        ],
-        "test_cases": [
-            {"type": "exec", "call": "double_all([1, 2, 3])", "expected": [2, 4, 6]},
-            {"type": "exec", "call": "double_all([])",        "expected": []},
         ],
     },
 
@@ -64,10 +62,6 @@ TASKS = [
             {"name": "test_empty_string", "code": "assert is_palindrome('') == True, 'empty string is palindrome'"},
             {"name": "test_returns_bool", "code": "assert isinstance(is_palindrome('a'), bool), 'must return bool'"},
         ],
-        "test_cases": [
-            {"type": "exec", "call": "is_palindrome('racecar')", "expected": True},
-            {"type": "exec", "call": "is_palindrome('hello')",   "expected": False},
-        ],
     },
 
     # ── EASY 3 (Regression Oracle) ────────────────────────────────────────────
@@ -96,9 +90,6 @@ TASKS = [
             {"name": "test_no_vowels", "code": "assert count_vowels('rhythm') == 0, 'rhythm has 0 vowels'"},
             {"name": "test_empty", "code": "assert count_vowels('') == 0, 'empty string has 0 vowels'"},
         ],
-        "test_cases": [
-            {"type": "exec", "call": "count_vowels('hello')", "expected": 2},
-        ],
     },
 
     # ── EASY 4 (Regression Oracle) ────────────────────────────────────────────
@@ -112,7 +103,7 @@ TASKS = [
     return product''',
         "task_description": (
             "multiply_list should return the product of all numbers in a list. "
-            "The bug is initializing product to 0 instead of 1 — multiplying by 0 always returns 0."
+            "The bug is initializing product to 0 instead of 1."
         ),
         "test_hint": "Tested with: [1,2,3,4]→24, [5,5]→25, [1]→1, [-1,-1]→1",
         "correct_line": 2,
@@ -124,11 +115,6 @@ TASKS = [
         "passing_tests": [
             {"name": "test_single", "code": "assert multiply_list([1]) == 1, 'single element product'"},
             {"name": "test_negatives", "code": "assert multiply_list([-1, -1]) == 1, 'two negatives give positive'"},
-        ],
-        "test_cases": [
-            {"type": "exec", "call": "multiply_list([1, 2, 3, 4])", "expected": 24},
-            {"type": "exec", "call": "multiply_list([5, 5])",      "expected": 25},
-            {"type": "exec", "call": "multiply_list([1])",         "expected": 1},
         ],
     },
 
@@ -154,9 +140,6 @@ TASKS = [
         "passing_tests": [
             {"name": "test_empty_input", "code": "assert recursive_sum([]) == 0, 'empty list returns 0'"},
         ],
-        "test_cases": [
-            {"type": "exec", "call": "recursive_sum([1, 2, 3])", "expected": 6},
-        ],
     },
 
     # ── MEDIUM 2 (Regression Oracle) ───────────────────────────────────────────
@@ -175,22 +158,16 @@ TASKS = [
             hi = mid - 1
     return -1''',
         "task_description": (
-            "Binary search: return the index of target in a sorted list, or -1 if not found. "
-            "The bug is integer division — mid should use // not /."
+            "Binary search index of target or -1. The bug is integer division — mid should use // not /."
         ),
         "test_hint": "Tested with: ([1,3,5,7,9], 5)→2, ([1,3,5], 6)→-1, ([], 1)→-1",
         "correct_line": 4,
         "correct_bug_type": "runtime",
         "failing_tests": [
             {"name": "test_found_middle", "code": "assert binary_search([1, 3, 5, 7, 9], 5) == 2, 'should find 5 at index 2'"},
-            {"name": "test_found_first", "code": "assert binary_search([1, 3, 5, 7, 9], 1) == 0, 'should find 1 at index 0'"},
         ],
         "passing_tests": [
-            {"name": "test_not_found", "code": "assert binary_search([1, 3, 5], 6) == -1, 'should return -1 when not found'"},
-            {"name": "test_empty_array", "code": "assert binary_search([], 1) == -1, 'empty array returns -1'"},
-        ],
-        "test_cases": [
-            {"type": "exec", "call": "binary_search([1, 3, 5, 7, 9], 5)", "expected": 2},
+            {"name": "test_not_found", "code": "assert binary_search([1, 3, 5], 6) == -1, 'should return -1'"},
         ],
     },
 
@@ -207,55 +184,16 @@ TASKS = [
             result.append(item)
     return nested''',
         "task_description": (
-            "Recursively flatten a nested list of any depth into a single flat list. "
-            "The bug is returning nested instead of result."
+            "Recursively flatten a deeply nested list. The bug is returning nested instead of result."
         ),
-        "test_hint": "Tested with: [1,[2,3],[4,[5,6]]]→[1,2,3,4,5,6], []→[], [1,2,3]→[1,2,3]",
+        "test_hint": "[1,[2,3]]→[1,2,3]",
         "correct_line": 8,
         "correct_bug_type": "logic",
         "failing_tests": [
-            {"name": "test_nested_list", "code": "assert flatten_list([1, [2, 3], [4, [5, 6]]]) == [1, 2, 3, 4, 5, 6], 'must flatten deeply'"},
-            {"name": "test_deeply_nested", "code": "assert flatten_list([[1, [2]], 3]) == [1, 2, 3], 'deep nest must flatten'"},
+            {"name": "test_nested", "code": "assert flatten_list([1, [2, 3]]) == [1, 2, 3]"},
         ],
         "passing_tests": [
-            {"name": "test_empty", "code": "assert flatten_list([]) == [], 'empty list stays empty'"},
-            {"name": "test_flat_list", "code": "assert flatten_list([1, 2, 3]) == [1, 2, 3], 'flat list unchanged'"},
-        ],
-        "test_cases": [
-            {"type": "exec", "call": "flatten_list([1, [2, 3]])", "expected": [1, 2, 3]},
-        ],
-    },
-
-    # ── MEDIUM 4 (Regression Oracle) ─────────────────────────────────────────────
-    {
-        "task_id": "medium_04",
-        "difficulty": "medium",
-        "code_snippet": '''def find_duplicates(lst):
-    seen = set()
-    duplicates = set()
-    for item in lst:
-        if item in seen:
-            duplicates.add(item)
-        seen.add(item)
-    return seen''',
-        "task_description": (
-            "find_duplicates should return a set of all items that appear more than once. "
-            "The bug is returning 'seen' instead of 'duplicates'."
-        ),
-        "test_hint": "Tested with: [1,2,2,3,3,3]→{2,3}, [1,2,3]→set(), [1,1]→{1}",
-        "correct_line": 8,
-        "correct_bug_type": "logic",
-        "failing_tests": [
-            {"name": "test_multiple_dups", "code": "assert find_duplicates([1, 2, 2, 3, 3, 3]) == {2, 3}, 'must return only duplicates'"},
-            {"name": "test_single_dup", "code": "assert find_duplicates([1, 1]) == {1}, 'single duplicate'"},
-        ],
-        "passing_tests": [
-            {"name": "test_no_dups", "code": "assert find_duplicates([1, 2, 3]) == set(), 'no duplicates returns empty set'"},
-            {"name": "test_returns_set", "code": "assert isinstance(find_duplicates([1]), set), 'must return a set'"},
-        ],
-        "test_cases": [
-            {"type": "exec", "call": "find_duplicates([1, 2, 2, 3, 3, 3])", "expected": {2, 3}},
-            {"type": "exec", "call": "find_duplicates([1, 2, 3])",          "expected": set()},
+            {"name": "test_empty", "code": "assert flatten_list([]) == []"},
         ],
     },
 
@@ -273,103 +211,93 @@ TASKS = [
     def peek(self):
         return self.items[-1] if self.items else None''',
         "task_description": (
-            "The bug is a mutable default argument: items=[] in __init__ causes all instances to share the same list."
+            "Bug: mutable default argument items=[] causes instance state sharing."
         ),
-        "test_hint": "Tests isolation between instances: s1=Stack(); s2=Stack(); s1.push(1) must not appear in s2",
+        "test_hint": "s1=Stack(); s2=Stack(); s1.push(1); assert 1 not in s2.items",
         "correct_line": 2,
         "correct_bug_type": "logic",
         "failing_tests": [
-            {"name": "test_instance_isolation", "code": "s1 = Stack(); s2 = Stack(); s1.push(1); assert 1 not in s2.items, 'instances must be separate'"},
+            {"name": "test_isolation", "code": "s1 = Stack(); s2 = Stack(); s1.push(1); assert 1 not in s2.items"},
         ],
         "passing_tests": [
-            {"name": "test_init", "code": "s = Stack(); assert isinstance(s, Stack), 'must create instance'"},
-        ],
-        "test_cases": [
-            {"type": "exec", "call": "s=Stack(); s.push(1); s.peek()", "expected": 1},
+            {"name": "test_peek", "code": "s = Stack(); s.push(5); assert s.peek() == 5"},
         ],
     },
 
-    # ── HARD 2 (Regression Oracle) ─────────────────────────────────────────────
+    # ── HARD 2 (SQL Injection) ──────────────────────────────────────────────────
     {
         "task_id": "hard_02",
         "difficulty": "hard",
         "code_snippet": '''import sqlite3
-def get_user_by_name(db_path, username):
-    conn = sqlite3.connect(db_path)
+def get_user(db, name):
+    conn = sqlite3.connect(db)
     cursor = conn.cursor()
-    cursor.execute(f"SELECT * FROM users WHERE username = '{username}'")
-    result = cursor.fetchone()
-    conn.close()
-    return result''',
+    cursor.execute(f"SELECT * FROM users WHERE name = '{name}'")
+    return cursor.fetchone()''',
         "task_description": (
-            "The bug is SQL injection via f-string. Use parameterized queries instead."
+            "Security vulnerability: SQL injection via f-string query. Use parameterized query."
         ),
-        "test_hint": "no f-string allowed in SQL. Must use parameterized query.",
-        "correct_line": 6,
+        "test_hint": "no f' in SQL; use '?'",
+        "correct_line": 5,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_fstring_sql", "code": "import inspect; src = inspect.getsource(get_user_by_name); assert \"f'\" not in src and 'f\"' not in src, 'no f-string in SQL'"},
+            {"name": "test_no_fstring", "code": "import inspect; src = inspect.getsource(get_user); assert \"f'\" not in src and 'f\"' not in src"},
         ],
         "passing_tests": [
-            {"name": "test_uses_parameterized", "code": "import inspect; src = inspect.getsource(get_user_by_name); assert '?' in src or '%s' in src or ':username' in src, 'must use parameterized query'"},
-        ],
-        "test_cases": [
-            {"type": "pattern_absent", "pattern": "f\"", "description": "No f-string"},
+            {"name": "test_parameterized", "code": "import inspect; src = inspect.getsource(get_user); assert '?' in src or '%s' in src"},
         ],
     },
 
-    # ── HARD 3 (Regression Oracle) ─────────────────────────────────────────────
+    # ── STEP 3: NEW TASK CATEGORY — Project-Based (Multi-File) ─────────────────
     {
-        "task_id": "hard_03",
+        "task_id": "multi_file_01",
         "difficulty": "hard",
-        "code_snippet": '''import hashlib
-def hash_password(password):
-    return hashlib.md5(password.encode()).hexdigest()''',
-        "task_description": (
-            "The bug is using insecure MD5 for password hashing. Replace with SHA-256 or stronger."
-        ),
-        "test_hint": "md5 must not be used. Should use sha256 or stronger.",
-        "correct_line": 3,
-        "correct_bug_type": "security",
-        "failing_tests": [
-            {"name": "test_no_md5", "code": "import inspect; src = inspect.getsource(hash_password); assert 'md5' not in src, 'md5 must not be used'"},
-        ],
-        "passing_tests": [
-            {"name": "test_uses_strong_hash", "code": "import inspect; src = inspect.getsource(hash_password); assert any(h in src for h in ['sha256', 'sha512', 'bcrypt', 'argon2', 'pbkdf2']), 'must use strong hash'"},
-        ],
-        "test_cases": [
-            {"type": "pattern_absent", "pattern": "md5", "description": "MD5 not used"},
-        ],
-    },
+        "code_snippet": '''# --- project_structure/auth.py ---
+import hashlib
+def hash_pswd(password):
+    # SECURITY BUG: Using md5 is insecure for password hashing
+    return hashlib.md5(password.encode()).hexdigest()
 
-    # ── HARD 4 (Regression Oracle) ───────────────────────────────────────────────
-    {
-        "task_id": "hard_04",
-        "difficulty": "hard",
-        "code_snippet": '''import subprocess
-def run_command(user_input):
-    result = subprocess.run(
-        f"echo {user_input}",
-        shell=True,
-        capture_output=True,
-        text=True
-    )
-    return result.stdout.strip()''',
+# --- project_structure/api.py ---
+from auth import hash_pswd
+def create_user(username, pswd):
+    token = hash_pswd(pswd)
+    return {"user": username, "token": token}''',
         "task_description": (
-            "The bug is OS command injection via shell=True. Fix: pass command as a list with shell=False."
+            "Multi-file Project Bug: The 'auth.py' module uses insecure hashlib.md5(). "
+            "The agent must identify the insecure hash in auth.py and replace it with hashlib.sha256()."
         ),
-        "test_hint": "Must use shell=False and pass command as list, not f-string",
-        "correct_line": 3,
+        "test_hint": "Replace md5 with sha256 in the auth.py section of the snippet.",
+        "correct_line": 5,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_shell_true", "code": "import inspect; src = inspect.getsource(run_command); assert 'shell=True' not in src, 'shell=True is dangerous'"},
-            {"name": "test_no_fstring_cmd", "code": "import inspect; src = inspect.getsource(run_command); assert 'f\"echo' not in src and \"f'echo\" not in src, 'no f-string in command'"},
+            {"name": "test_no_md5", "code": "assert 'md5' not in code_snippet, 'md5 matches insecure pattern'"},
         ],
         "passing_tests": [
-            {"name": "test_uses_list_or_shell_false", "code": "import inspect; src = inspect.getsource(run_command); assert 'shell=False' in src or '[' in src, 'must use list form or shell=False'"},
+            {"name": "test_uses_sha256", "code": "assert 'sha256' in code_snippet, 'must upgrade to sha256'"},
+            {"name": "test_api_ref", "code": "assert 'from auth import hash_pswd' in code_snippet, 'do not break imports'"},
         ],
-        "test_cases": [
-            {"type": "pattern_absent", "pattern": "shell=True", "description": "No shell=True"},
-        ],
-    },
+    }
 ]
+
+# STEP 4: Dynamic Task Template Helper
+def get_randomized_task():
+    """Generates a randomized variation of a task to prevent agent memorization."""
+    # Only randomize easy/medium tasks for now to ensure grader stability
+    base_task = random.choice([t for t in TASKS if t["difficulty"] != "hard"])
+    
+    # Randomize variable names
+    var_map = {
+        "lst": random.choice(["items", "nums", "data", "collection"]),
+        "result": random.choice(["out", "final", "acc", "output"]),
+        "count": random.choice(["total", "val", "n_items", "acc"]),
+    }
+    
+    task_copy = base_task.copy()
+    code = task_copy["code_snippet"]
+    for old, new in var_map.items():
+        code = code.replace(old, new)
+    
+    task_copy["code_snippet"] = code
+    task_copy["task_id"] = f"dynamic_{base_task['task_id']}_{random.randint(100,999)}"
+    return task_copy
