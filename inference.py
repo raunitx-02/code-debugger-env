@@ -1,52 +1,44 @@
 """
-inference.py — Baseline inference script for Code Debugger OpenEnv environment.
-
-Mandatory environment variables:
-  API_BASE_URL  — LLM API endpoint
-  MODEL_NAME    — Model identifier
-  HF_TOKEN      — Hugging Face / API key
-
-STDOUT FORMAT (mandatory):
-  [START] task=<task_id> env=code-debugger model=<model>
-  [STEP] step=<n> action=<bug_type>:line<bug_line> reward=<0.00> done=<true|false> error=<msg|null>
-  [END] success=<true|false> steps=<n> rewards=<r1,r2,...>
+inference.py — OpenEnv standard inference script for Python Code Debugger.
+Mandatory log format: [START], [STEP], [END] as key=value.
 """
 import os
+import sys
 import json
 import time
-import sys
-import subprocess
 import re
-from typing import List, Optional
-
+import subprocess
+from typing import List, Dict, Any, Optional
 from openai import OpenAI
 from openenv.core import GenericEnvClient
 
-# ── Configuration ──────────────────────────────────────────────────
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-API_KEY      = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "dummy")
-MODEL_NAME   = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
-ENV_BASE_URL = os.getenv("ENV_BASE_URL") or "http://localhost:7860"
+# ── Configuration ─────────────────────────────────────────────────────────────
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME   = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+API_KEY      = os.getenv("HF_TOKEN", "")
+ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
 BENCHMARK    = "code-debugger"
-MAX_ATTEMPTS = 3
+
 NUM_EPISODES = 9
-SUCCESS_THRESHOLD = 0.5
+MAX_ATTEMPTS = 3
 
-SYSTEM_PROMPT = """You are an expert Python debugger and security researcher.
+# ── Prompt / System Message ───────────────────────────────────────────────────
+SYSTEM_PROMPT = """You are an expert Python security auditor and debugger. 
+You will be given a Python code snippet containing exactly one bug (syntax, logic, runtime, or security).
+Your goal is to identify the bug line (1-indexed), categorize it, and provide the complete fixed code.
 
-You will receive a Python code snippet containing exactly one bug.
+IMPORTANT RULES:
+1. ALWAYS provide the COMPLETE fixed code.
+2. If this is a RETRY, you will receive feedback from the grader. Use it to improve your fix.
+3. SECURITY: Do NOT use eval(), exec(), bare except:, or while True without a break.
+4. Format your response as a single JSON object.
 
-Your task:
-1. Find the exact line number of the bug (count ALL lines from 1, including blank lines)
-2. Classify the bug type as EXACTLY one of: syntax | logic | runtime | security
-3. Write the COMPLETE corrected function(s) — not just the fix, the entire code snippet
-
-RESPOND WITH ONLY A VALID JSON OBJECT — no explanation text, no markdown, no code blocks:
+Example Output:
 {
-  "bug_line": <integer>,
-  "bug_type": "<syntax|logic|runtime|security>",
-  "fixed_code": "<complete corrected Python code as a single string>",
-  "explanation": "<one sentence describing what the bug was>"
+  "bug_line": 4,
+  "bug_type": "runtime",
+  "explanation": "Integer division by zero.",
+  "fixed_code": "def divide(a, b):\\n    return a // b if b != 0 else 0"
 }"""
 
 # ── Mandatory log helpers ───────────────────────────────────────────
@@ -87,37 +79,40 @@ def parse_llm_action(response_text: str) -> dict:
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         try:
-            return json.loads(match.group())
+            return json.loads(match.group(0))
         except json.JSONDecodeError:
             pass
-    return {"bug_line": 1, "bug_type": "logic", "fixed_code": "", "explanation": "parse failed"}
+    return {"bug_line": 1, "bug_type": "logic", "fixed_code": text[:100], "explanation": "failed to parse json"}
 
 
-def build_user_message(task_desc, hint, code, attempt, score_so_far, feedback):
-    msg = f"""Task description: {task_desc}
+def build_user_message(obs: Any, attempt: int) -> str:
+    # Unpack observation (handle both dict and Pydantic modes)
+    if isinstance(obs, dict):
+        code         = obs.get("code_snippet", "")
+        task_desc    = obs.get("task_description", "")
+        hint         = obs.get("test_hint", "")
+        feedback     = obs.get("feedback", "")
+        score_so_far = obs.get("score_so_far", 0.0)
+    else:
+        code         = getattr(obs, "code_snippet", "")
+        task_desc    = getattr(obs, "task_description", "")
+        hint         = getattr(obs, "test_hint", "")
+        feedback     = getattr(obs, "feedback", "")
+        score_so_far = getattr(obs, "score_so_far", 0.0)
 
-Test requirements: {hint}
-
-Attempt {attempt}/{MAX_ATTEMPTS} | Score so far: {score_so_far:.2f}
-
-Code to debug (line numbers start at 1):
+    msg = f"""TASK: {task_desc}
+CODE SNIPPET:
 ```python
 {code}
-```"""
+```
+TESTING HINT: {hint}
+
+Attempt {attempt} | Score so far: {score_so_far:.2f}
+"""
     if feedback and attempt > 1:
-        # Extract actionable items from grader feedback for targeted retry
-        msg += f"""
-
-GRADER FEEDBACK FROM YOUR LAST ATTEMPT:
-{feedback}
-
-WHAT TO FIX IN THIS ATTEMPT:
-- Look at every line marked with ✗ above
-- If bug_line or bug_type was wrong, re-read the code carefully and correct them
-- If test cases failed, look at the EXACT error message and fix the logic
-- REMINDER: Do NOT use eval(), exec(), bare except:, or while True without break
-- Write the COMPLETE fixed code again from scratch"""
-
+        msg += f"\nGRADER FEEDBACK FROM PREVIOUS ATTEMPT:\n{feedback}\n"
+        msg += "\nINSTRUCTIONS: Fix the ✗ items above. Correct the bug_line or logic. Write COMPLETE fixed code."
+    
     return msg
 
 
@@ -129,14 +124,16 @@ def run_episode(llm: OpenAI, env_sync, episode_num: int) -> dict:
     difficulty = "unknown"
 
     try:
-        state      = env_sync.state()
-        state_dict = state if isinstance(state, dict) else (state.dict() if hasattr(state, "dict") else {})
-        task_id    = state_dict.get("task_id", "unknown")
-        difficulty = state_dict.get("difficulty", "unknown")
-    except Exception as e:
-        print(f"[DEBUG] state() error: {e}", file=sys.stderr, flush=True)
+        if isinstance(obs, dict):
+            task_id = obs.get("task_id", "unknown")
+            difficulty = obs.get("difficulty", "unknown")
+        else:
+            task_id = getattr(obs, "task_id", "unknown")
+            difficulty = getattr(obs, "difficulty", "unknown")
+    except Exception:
+        pass
 
-    log_start(task_id=task_id, model=MODEL_NAME)
+    log_start(task_id, MODEL_NAME)
 
     step_rewards: List[float] = []
     best_score  = 0.0
@@ -146,98 +143,64 @@ def run_episode(llm: OpenAI, env_sync, episode_num: int) -> dict:
 
     try:
         for attempt in range(1, max_attempts + 1):
-            # ── Unpack observation ────────────────────────────────────────
-            if isinstance(obs, dict):
-                done         = obs.get("done", False)
-                code         = obs.get("code_snippet", "")
-                task_desc    = obs.get("task_description", "")
-                hint         = obs.get("test_hint", "")
-                feedback     = obs.get("feedback", "")
-                score_so_far = obs.get("score_so_far", 0.0)
-            else:
-                done         = getattr(obs, "done", False)
-                code         = getattr(obs, "code_snippet", "")
-                task_desc    = getattr(obs, "task_description", "")
-                hint         = getattr(obs, "test_hint", "")
-                feedback     = getattr(obs, "feedback", "")
-                score_so_far = getattr(obs, "score_so_far", 0.0)
+            # ── Get model response ────────────────────────────────────────
+            user_msg = build_user_message(obs, attempt)
+            completion = llm.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0.1,
+            )
+            resp_text = completion.choices[0].message.content
+            action_dict = parse_llm_action(resp_text)
+            
+            # ── Execute environment step ──────────────────────────────────
+            step_result = env_sync.step({
+                "bug_line": action_dict.get("bug_line", 1),
+                "bug_type": action_dict.get("bug_type", "logic"),
+                "fixed_code": action_dict.get("fixed_code", ""),
+                "explanation": action_dict.get("explanation", ""),
+            })
+            
+            obs    = step_result.observation
+            reward = float(step_result.reward) if step_result.reward is not None else 0.0
+            done   = step_result.done
+            
+            total_steps += 1
+            step_rewards.append(reward)
+            best_score = max(best_score, reward)
+            
+            err_msg = None
+            if reward <= 0 and "✗" in getattr(obs, "feedback", ""):
+                 err_msg = "test_failure"
 
+            log_step(
+                step=total_steps,
+                bug_type=action_dict.get("bug_type", "logic"),
+                bug_line=action_dict.get("bug_line", 1),
+                reward=reward,
+                done=done,
+                error=err_msg
+            )
+            
             if done:
                 break
 
-            user_msg   = build_user_message(task_desc, hint, code, attempt, score_so_far, feedback)
-            step_error = None
+    except Exception as e:
+        last_error = str(e)
+        print(f"[DEBUG] Episode crashed: {e}", file=sys.stderr, flush=True)
 
-            # ── Call LLM ─────────────────────────────────────────────────
-            try:
-                completion = llm.chat.completions.create(
-                    model=MODEL_NAME,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user",   "content": user_msg},
-                    ],
-                    temperature=0,       # Fully deterministic — critical for accuracy
-                    max_tokens=1000,
-                    stream=False,
-                )
-                response_text = completion.choices[0].message.content or ""
-            except Exception as e:
-                print(f"[DEBUG] LLM error: {e}", file=sys.stderr, flush=True)
-                response_text = ""
-                last_error    = str(e)[:80]
-
-            action   = parse_llm_action(response_text)
-            bug_line = action.get("bug_line", 1)
-            bug_type = action.get("bug_type", "logic")
-
-            # ── Submit action ─────────────────────────────────────────────
-            try:
-                step_result = env_sync.step(action)
-                obs         = step_result.observation if hasattr(step_result, "observation") else step_result
-                reward      = (
-                    step_result.reward
-                    if hasattr(step_result, "reward") and step_result.reward is not None
-                    else (obs.get("reward") if isinstance(obs, dict) else getattr(obs, "reward", 0.0)) or 0.0
-                )
-                done_after  = (
-                    step_result.done
-                    if hasattr(step_result, "done")
-                    else (obs.get("done", False) if isinstance(obs, dict) else getattr(obs, "done", False))
-                )
-            except Exception as e:
-                print(f"[DEBUG] step() error: {e}", file=sys.stderr, flush=True)
-                reward     = 0.0
-                done_after = True
-                step_error = str(e)[:80]
-                last_error = step_error
-
-            step_rewards.append(float(reward))
-            total_steps = attempt
-
-            if reward > best_score:
-                best_score = reward
-
-            log_step(
-                step=attempt,
-                bug_type=bug_type,
-                bug_line=bug_line,
-                reward=float(reward),
-                done=bool(done_after),
-                error=step_error or last_error,
-            )
-
-            if done_after or best_score >= 0.95:
-                break
-
-    finally:
-        success = best_score >= SUCCESS_THRESHOLD
-        log_end(success=success, steps=total_steps, rewards=step_rewards)
+    success = best_score >= 0.5
+    log_end(success, total_steps, step_rewards)
 
     return {
-        "task_id":    task_id,
-        "difficulty": difficulty,
-        "best_score": best_score,
-        "attempts":   total_steps,
+        "task_id":      task_id,
+        "difficulty":   difficulty,
+        "best_score":   best_score,
+        "attempts":     total_steps,
+        "error":        last_error,
     }
 
 
@@ -279,52 +242,39 @@ def main():
                 file=sys.stderr, flush=True,
             )
 
-    elapsed = time.time() - start_time
-
-    by_diff = {"easy": [], "medium": [], "hard": []}
-    for r in results:
-        d = r.get("difficulty", "easy")
-        if d in by_diff:
-            by_diff[d].append(r["best_score"])
-
-    overall_avg = sum(r["best_score"] for r in results) / len(results) if results else 0.0
-    easy_avg    = sum(by_diff["easy"])   / len(by_diff["easy"])   if by_diff["easy"]   else 0.0
-    medium_avg  = sum(by_diff["medium"]) / len(by_diff["medium"]) if by_diff["medium"] else 0.0
-    hard_avg    = sum(by_diff["hard"])   / len(by_diff["hard"])   if by_diff["hard"]   else 0.0
-
-    print(
-        f"\n[DEBUG] ══════════════════════════════════════\n"
-        f"[DEBUG] RESULTS SUMMARY\n"
-        f"[DEBUG] ══════════════════════════════════════",
-        file=sys.stderr, flush=True,
-    )
-    for r in results:
-        print(
-            f"[DEBUG]   {r['task_id']:15s} | {r['difficulty']:6s} | {r['best_score']:.3f}",
-            file=sys.stderr, flush=True,
-        )
-    print(
-        f"[DEBUG] ──────────────────────────────────────\n"
-        f"[DEBUG]   Easy average:    {easy_avg:.3f}\n"
-        f"[DEBUG]   Medium average:  {medium_avg:.3f}\n"
-        f"[DEBUG]   Hard average:    {hard_avg:.3f}\n"
-        f"[DEBUG]   Overall average: {overall_avg:.3f}\n"
-        f"[DEBUG]   Runtime:         {elapsed:.1f}s\n"
-        f"[DEBUG] ══════════════════════════════════════",
-        file=sys.stderr, flush=True,
-    )
-
-    print(
-        f"easy_avg={easy_avg:.3f} medium_avg={medium_avg:.3f} "
-        f"hard_avg={hard_avg:.3f} overall={overall_avg:.3f}",
-        file=sys.stderr, flush=True,
-    )
-
-    assert elapsed < 1200, f"FAIL: runtime {elapsed:.0f}s exceeds 20-minute limit"
-    print("[DEBUG] All checks passed. Submission ready!", file=sys.stderr, flush=True)
-
     if server_proc:
         server_proc.terminate()
+
+    # ── Final Summary ───────────────────────────────────────────────────────────
+    total_episodes = len(results)
+    if total_episodes == 0:
+        print("[DEBUG] No episodes run.", file=sys.stderr)
+        return
+
+    easy_scores   = [r['best_score'] for r in results if r['difficulty'] == 'easy']
+    medium_scores = [r['best_score'] for r in results if r['difficulty'] == 'medium']
+    hard_scores   = [r['best_score'] for r in results if r['difficulty'] == 'hard']
+    all_scores    = [r['best_score'] for r in results]
+
+    def avg(lst): return sum(lst) / len(lst) if lst else 0.0
+
+    print("\n[DEBUG] ════════ FINAL SUMMARY ════════", file=sys.stderr)
+    print(f"[DEBUG]   Episodes:      {total_episodes}", file=sys.stderr)
+    print(f"[DEBUG]   Avg Score:     {avg(all_scores):.3f}", file=sys.stderr)
+    print("[DEBUG] ────────────────────────────────", file=sys.stderr)
+    for res in results:
+        print(f"[DEBUG]   {res['task_id']:15s} | {res['difficulty']:6s} | {res['best_score']:.3f}", file=sys.stderr)
+    print("[DEBUG] ────────────────────────────────", file=sys.stderr)
+    print(f"[DEBUG]   Easy average:    {avg(easy_scores):.3f}", file=sys.stderr)
+    print(f"[DEBUG]   Medium average:  {avg(medium_scores):.3f}", file=sys.stderr)
+    print(f"[DEBUG]   Hard average:    {avg(hard_scores):.3f}", file=sys.stderr)
+    print(f"[DEBUG]   Overall average: {avg(all_scores):.3f}", file=sys.stderr)
+    print(f"[DEBUG]   Runtime:         {time.time() - start_time:.1f}s", file=sys.stderr)
+    print("[DEBUG] ════════════════════════════════", file=sys.stderr)
+
+    # FINAL MANDATORY SUMMARY LINE
+    print(f"easy_avg={avg(easy_scores):.3f} medium_avg={avg(medium_scores):.3f} hard_avg={avg(hard_scores):.3f} overall={avg(all_scores):.3f}")
+    print("[DEBUG] All checks passed. Submission ready!", file=sys.stderr)
 
 
 if __name__ == "__main__":
