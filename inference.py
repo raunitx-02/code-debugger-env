@@ -15,7 +15,7 @@ from openenv.core import GenericEnvClient
 # ── Configuration ─────────────────────────────────────────────────────────────
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-API_KEY      = os.getenv("HF_TOKEN", "")
+API_KEY      = os.getenv("HF_TOKEN")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
 BENCHMARK    = "code-debugger"
 
@@ -52,9 +52,9 @@ def log_step(step: int, bug_type: str, bug_line: int, reward: float, done: bool,
     done_val   = str(done).lower()
     print(f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}", flush=True)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
 
 
 # ── Server + parsing helpers ────────────────────────────────────────
@@ -193,7 +193,7 @@ def run_episode(llm: OpenAI, env_sync, episode_num: int) -> dict:
         print(f"[DEBUG] Episode crashed: {e}", file=sys.stderr, flush=True)
 
     success = best_score >= 0.5
-    log_end(success, total_steps, step_rewards)
+    log_end(success, total_steps, best_score, step_rewards)
 
     return {
         "task_id":      task_id,
