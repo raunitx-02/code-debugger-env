@@ -15,6 +15,16 @@ app = create_app(
     env_name="code-debugger-env"
 )
 
+@app.get("/")
+def root():
+    """Environment root — provides deployment status and endpoint directory."""
+    return {
+        "name": "code-debugger-env",
+        "status": "running",
+        "message": "BugHunterRL OpenEnv environment is live",
+        "endpoints": ["/health", "/metadata", "/stats", "/reset", "/step", "/state"]
+    }
+
 @app.get("/health")
 def health():
     """Health check endpoint required by Dockerfile HEALTHCHECK and inference.py."""

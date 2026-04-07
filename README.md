@@ -5,13 +5,14 @@ colorFrom: red
 colorTo: indigo
 sdk: docker
 pinned: false
+app_port: 7860
 ---
 
-# BugHunterRL: Reinforcement Learning for Automated Code Debugging
+# BugHunterRL: RL for Automated Code Debugging
 
 > **Submission for Meta × PyTorch OpenEnv Hackathon @ Scaler**  
 > 13 real-world Python debugging tasks • Regression Test Oracle • Code Smell AST Penalty  
-> Deployed on Hugging Face Spaces • Docker • FastAPI • OpenEnv Core 0.2.1
+> Deployed on HF Spaces • FastAPI + Docker • OpenEnv Core 0.2.1
 
 [![HF Space](https://img.shields.io/badge/🤗%20HuggingFace-Space-blue)](https://huggingface.co/spaces/raunit19/code-debugger-env)
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-0.2.1-green)](https://github.com/openenv/openenv-core)
@@ -53,6 +54,7 @@ BugHunterRL is a production-grade OpenEnv environment for training and evaluatin
 
 | Endpoint | Method | Description |
 |---|---|---|
+| `/` | GET | Root — provides status and endpoint directory |
 | `/reset` | POST | Start new episode, returns first observation |
 | `/step` | POST | Submit action, returns reward + observation |
 | `/state` | GET | Returns current episode state |
