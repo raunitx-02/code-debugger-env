@@ -269,10 +269,11 @@ def get_user(db, name):
         "correct_line": 5,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_fstring", "code": "assert \"f'\" not in fixed_code and 'f\"' not in fixed_code, 'no f-string in query'"},
+            {"name": "test_no_fstring", "type": "pattern_absent", "pattern": r"f['\"]", "desc": "No f-string in query"},
+            {"name": "test_no_concat", "type": "pattern_absent", "pattern": r"['\"]\s*\+\s*", "desc": "No string concatenation in SQL"},
         ],
         "passing_tests": [
-            {"name": "test_parameterized", "code": "assert '?' in fixed_code or '%s' in fixed_code, 'must use parameterized query'"},
+            {"name": "test_parameterized", "type": "pattern_present", "pattern": r"parameterized|execute.*%s|execute.*\?|cursor\.execute.*param|\?,", "desc": "Uses parameterized queries"},
         ],
     },
 
@@ -291,10 +292,10 @@ def hash_password(password):
         "correct_line": 3,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_md5", "code": "assert 'md5' not in fixed_code.lower(), 'md5 must be removed'"},
+            {"name": "test_no_md5", "type": "pattern_absent", "pattern": r"md5", "desc": "No MD5 usage"},
         ],
         "passing_tests": [
-            {"name": "test_sha256", "code": "assert 'sha256' in fixed_code.lower(), 'must use sha256'"},
+            {"name": "test_sha256", "type": "pattern_present", "pattern": r"sha256|sha512|bcrypt|argon2|pbkdf2", "desc": "Uses secure hashing"},
         ],
     },
 
@@ -314,10 +315,11 @@ def run_command(user_input):
         "correct_line": 3,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_shell_true", "code": "assert 'shell=True' not in fixed_code, 'shell=True must be removed'"},
+            {"name": "test_no_shell_true", "type": "pattern_absent", "pattern": r"shell=True", "desc": "No shell=True"},
         ],
         "passing_tests": [
-            {"name": "test_uses_list", "code": "assert 'shell=False' in fixed_code or 'shell' not in fixed_code, 'must disable shell'"},
+            {"name": "test_uses_list", "type": "pattern_present", "pattern": r"\[.*,.*\]", "desc": "Uses command list"},
+            {"name": "test_no_shell", "type": "pattern_absent", "pattern": r"shell=True", "desc": "Must disable shell"},
         ],
     }
 ]

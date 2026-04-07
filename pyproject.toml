@@ -1,19 +1,20 @@
 [project]
 name = "code-debugger-env"
 version = "1.0.0"
-description = "Python Code Debugger OpenEnv Environment — hackathon submission"
+description = "BugHunterRL — Python Code Debugger OpenEnv Environment"
 requires-python = ">=3.10"
 dependencies = [
-    "openenv-core",
-    "fastapi",
-    "uvicorn[standard]",
+    "openenv-core>=0.1.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
     "pydantic>=2",
-    "openai",
+    "openai>=1.0",
+    "requests>=2.31.0",
+    "httpx>=0.25.0",
 ]
 
 [project.scripts]
 server = "app:main"
-
 
 [build-system]
 requires = ["hatchling"]
@@ -21,3 +22,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
+
+[tool.hatch.build]
+include = [
+    "__init__.py",
+    "models.py",
+    "environment.py",
+    "grader.py",
+    "tasks.py",
+    "app.py",
+    "inference.py",
+]

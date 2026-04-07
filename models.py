@@ -38,7 +38,7 @@ class CodeDebugObservation(Observation):
     reward: Optional[float] = 0.001
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-@dataclass
+@dataclass(kw_only=True)
 class CodeDebugState(State):
     """
     Internal environment state.

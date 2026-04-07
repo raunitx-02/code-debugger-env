@@ -19,7 +19,7 @@ class CodeDebuggerEnvironment(Environment):
     - Multi-file project debugging (Project-Based simulation).
     - Dynamic randomization to prevent agent memorization.
     """
-    SUPPORTS_CONCURRENT_SESSIONS = False
+    SUPPORTS_CONCURRENT_SESSIONS = True
 
     def __init__(self):
         super().__init__()
@@ -129,7 +129,6 @@ class CodeDebuggerEnvironment(Environment):
             },
         )
 
-    @property
     def state(self) -> CodeDebugState:
         if self._state is None:
             return CodeDebugState()

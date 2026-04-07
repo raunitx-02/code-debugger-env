@@ -233,9 +233,21 @@ assert _result == {repr(expected)}, f"Got {{_result!r}}"
                 if ok: passed += 1
                 else: feedback_lines.append(f"✗ {call}: {msg.split(chr(10))[-1][:120]}")
 
-            elif tc_type.startswith("pattern"):
-                # Simplified check for brevity
-                passed += 1 
+            elif tc_type == "pattern_absent":
+                # Test that a DANGEROUS pattern is ABSENT from fixed code (security tasks)
+                bad_pattern = tc.get("pattern", "")
+                if bad_pattern and not re.search(bad_pattern, fixed_code, re.IGNORECASE):
+                    passed += 1
+                else:
+                    feedback_lines.append(f"✗ Security pattern still present: {bad_pattern}")
+
+            elif tc_type == "pattern_present":
+                # Test that a REQUIRED pattern IS present in fixed code
+                required_pattern = tc.get("pattern", "")
+                if required_pattern and re.search(required_pattern, fixed_code, re.IGNORECASE):
+                    passed += 1
+                else:
+                    feedback_lines.append(f"✗ Required pattern missing: {required_pattern}") 
 
         base_score = (passed / total) * 0.7 if total > 0 else 0.001
         correct_line = task.get("correct_line", 0)

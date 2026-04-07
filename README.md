@@ -73,6 +73,49 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## 📦 Install as Client (OpenEnv Standard)
+
+To use this environment in your RL training pipeline:
+
+```bash
+pip install git+https://huggingface.co/spaces/raunit19/code-debugger-env
+```
+
+Then in Python:
+
+```python
+import asyncio
+from code_debugger_env import CodeDebuggerEnv, CodeDebugAction
+
+async def main():
+    async with CodeDebuggerEnv(base_url="https://raunit19-code-debugger-env.hf.space") as env:
+        obs = await env.reset()
+        print(obs.code_snippet)
+        
+        action = CodeDebugAction(
+            bug_line=4,
+            bug_type="logic",
+            fixed_code="def double_list(lst):\n    return [x * 2 for x in lst]",
+            explanation="Fixed off-by-one in loop range"
+        )
+        result = await env.step(action)
+        print(f"Reward: {result.reward:.3f}")
+
+asyncio.run(main())
+```
+
+Synchronous usage:
+
+```python
+from code_debugger_env import CodeDebuggerEnv, CodeDebugAction
+
+with CodeDebuggerEnv(base_url="https://raunit19-code-debugger-env.hf.space").sync() as env:
+    obs = env.reset()
+    action = CodeDebugAction(bug_line=4, bug_type="logic", fixed_code="...", explanation="...")
+    result = env.step(action)
+    print(result.reward)
+```
+
 ### Running Locally
 ```bash
 # Start the OpenEnv server

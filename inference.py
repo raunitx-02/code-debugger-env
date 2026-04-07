@@ -247,10 +247,11 @@ def main():
         hard_scores   = [r["best_score"] for r in results if r["difficulty"] == "hard"]
 
         print(
-            f"easy_avg={avg(easy_scores):.3f} "
+            f"[DEBUG] easy_avg={avg(easy_scores):.3f} "
             f"medium_avg={avg(medium_scores):.3f} "
             f"hard_avg={avg(hard_scores):.3f} "
-            f"overall={avg(all_scores):.3f}"
+            f"overall={avg(all_scores):.3f}",
+            file=sys.stderr
         )
         print("[DEBUG] All checks passed. Submission ready!", file=sys.stderr)
 
