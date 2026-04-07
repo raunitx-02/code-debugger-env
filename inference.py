@@ -208,12 +208,21 @@ def main():
     try:
         print(f"[DEBUG] BugHunterRL Inference v3 | model={MODEL_NAME} | env={ENV_BASE_URL}", file=sys.stderr, flush=True)
 
-        # Health check
-        try:
-            requests.get(f"{ENV_BASE_URL}/health", timeout=2)
-        except Exception:
-            print("[DEBUG] Server unreachable or starting...", file=sys.stderr, flush=True)
-
+        # ── Health check Retry Loop (Safe HF Cold Start) ──────────────────────
+        max_retries = 3
+        for i in range(max_retries):
+            try:
+                print(f"[DEBUG] Health check attempt {i+1}/{max_retries}...", file=sys.stderr, flush=True)
+                resp = requests.get(f"{ENV_BASE_URL}/health", timeout=5)
+                if resp.status_code == 200:
+                    print("[DEBUG] Environment is healthy and ready.", file=sys.stderr, flush=True)
+                    break
+            except Exception as e:
+                if i == max_retries - 1:
+                    print(f"[DEBUG] Environment unreachable after {max_retries} attempts: {e}", file=sys.stderr, flush=True)
+                else:
+                    time.sleep(5)
+        
         if not API_KEY:
             print("[DEBUG] ERROR: HF_TOKEN environment variable is not set.", file=sys.stderr)
             sys.exit(1)

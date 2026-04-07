@@ -1,6 +1,6 @@
 [project]
 name = "code-debugger-env"
-version = "1.0.0"
+version = "1.1.0"
 description = "BugHunterRL — Python Code Debugger OpenEnv Environment"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "app:main"
+server = "server.app:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -30,6 +30,8 @@ include = [
     "environment.py",
     "grader.py",
     "tasks.py",
-    "app.py",
+    "server/*.py",
     "inference.py",
+    "openenv.yaml",
+    "README.md",
 ]

@@ -54,6 +54,10 @@ observation_space:
     score_so_far:
       type: number
       description: "Best score achieved so far in this episode (0.0-1.0)"
+    difficulty:
+      type: string
+      enum: ["easy", "medium", "hard"]
+      description: "Difficulty level of the current task"
     done:
       type: boolean
       description: "True when the episode has ended"
@@ -97,6 +101,9 @@ tasks:
   - id: hard_04
     difficulty: hard
     description: "Fix OS command injection via shell=True subprocess"
+  - id: hard_05
+    difficulty: hard
+    description: "Multi-file project simulation: fix cross-module dependency bug"
 max_episode_steps: 5
 inference_timeout: 1200
 baseline_scores:

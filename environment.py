@@ -47,7 +47,8 @@ class CodeDebuggerEnvironment(Environment):
             # 30% chance of randomizing an existing task to increase difficulty
             if random.random() < 0.3:
                 task = get_randomized_task()
-                print(f"[DEBUG] Dynamic task generated: {task['task_id']}")
+                import sys
+                print(f"[DEBUG] Dynamic task generated: {task['task_id']}", file=sys.stderr)
             else:
                 task = random.choice(TASKS)
 

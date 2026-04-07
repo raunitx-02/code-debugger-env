@@ -77,17 +77,17 @@ class CodeDebuggerEnv:
         resp.raise_for_status()
         data = resp.json()
         obs_data = data.get("observation", data)
-        return CodeDebugObservation(**{k: v for k, v in obs_data.items() if k in CodeDebugObservation.__dataclass_fields__})
+        # Use Pydantic v2 model_fields for filtering
+        return CodeDebugObservation(**{k: v for k, v in obs_data.items() if k in CodeDebugObservation.model_fields})
 
     async def step(self, action: CodeDebugAction) -> CodeDebugObservation:
-        import dataclasses
-        action_dict = dataclasses.asdict(action)
-        action_dict.pop("metadata", None)
+        # Use Pydantic v2 model_dump for serialization
+        action_dict = action.model_dump(exclude={"metadata"})
         resp = await self._client.post("/step", json={"action": action_dict})
         resp.raise_for_status()
         data = resp.json()
         obs_data = data.get("observation", data)
-        return CodeDebugObservation(**{k: v for k, v in obs_data.items() if k in CodeDebugObservation.__dataclass_fields__})
+        return CodeDebugObservation(**{k: v for k, v in obs_data.items() if k in CodeDebugObservation.model_fields})
 
     async def state(self) -> Dict[str, Any]:
         resp = await self._client.get("/state")

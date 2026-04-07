@@ -321,6 +321,38 @@ def run_command(user_input):
             {"name": "test_uses_list", "type": "pattern_present", "pattern": r"\[.*,.*\]", "desc": "Uses command list"},
             {"name": "test_no_shell", "type": "pattern_absent", "pattern": r"shell=True", "desc": "Must disable shell"},
         ],
+    },
+    # ── HARD 5 (Project-Based Migration) ──────────────────────────────────────
+    {
+        "task_id": "hard_05",
+        "difficulty": "hard",
+        "code_snippet": '''# --- auth.py ---
+def get_user_role(username):
+    # Mapping for users
+    db = {"admin": "superuser", "guest": "readonly"}
+    return db.get(username, "guest")
+
+# --- api.py ---
+# from auth import get_user_role
+def delete_resource(username, resource_id):
+    role = get_user_role(username)
+    # BUG: Typo in 'superuser' (super_user)
+    if role == "super_user":
+        return f"Resource {resource_id} deleted."
+    return "Permission denied."''',
+        "task_description": (
+            "Multi-file simulation. The bug is a cross-module typo. "
+            "api.py checks for 'super_user' but auth.py returns 'superuser'."
+        ),
+        "test_hint": "Tested with: ('admin', 1) -> Success, ('guest', 1) -> Denied",
+        "correct_line": 12,
+        "correct_bug_type": "logic",
+        "failing_tests": [
+            {"name": "test_admin_delete", "code": "assert delete_resource('admin', 101) == 'Resource 101 deleted.', 'Admin should delete'"},
+        ],
+        "passing_tests": [
+            {"name": "test_guest_denied", "code": "assert delete_resource('guest', 101) == 'Permission denied.', 'Guest should be denied'"},
+        ],
     }
 ]
 

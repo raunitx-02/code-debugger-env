@@ -125,12 +125,34 @@ def _compute_regression_reward(
     extra_globals = {"fixed_code": fixed_code}
 
     for t in failing:
-        ok, _ = _run_single_test(fixed_code, t["code"], extra_globals=extra_globals)
+        t_type = t.get("type", "exec")
+        if t_type == "exec":
+            ok, _ = _run_single_test(fixed_code, t["code"], extra_globals=extra_globals)
+        elif t_type == "pattern_absent":
+            pattern = t.get("pattern", "")
+            ok = not re.search(pattern, fixed_code, re.IGNORECASE) if pattern else True
+        elif t_type == "pattern_present":
+            pattern = t.get("pattern", "")
+            ok = bool(re.search(pattern, fixed_code, re.IGNORECASE)) if pattern else True
+        else:
+            ok = False
+            
         if ok:
             tests_fixed.append(t["name"])
 
     for t in passing:
-        ok, _ = _run_single_test(fixed_code, t["code"], extra_globals=extra_globals)
+        t_type = t.get("type", "exec")
+        if t_type == "exec":
+            ok, _ = _run_single_test(fixed_code, t["code"], extra_globals=extra_globals)
+        elif t_type == "pattern_absent":
+            pattern = t.get("pattern", "")
+            ok = not re.search(pattern, fixed_code, re.IGNORECASE) if pattern else True
+        elif t_type == "pattern_present":
+            pattern = t.get("pattern", "")
+            ok = bool(re.search(pattern, fixed_code, re.IGNORECASE)) if pattern else True
+        else:
+            ok = True # default ok if type unknown
+
         if not ok:
             tests_broken.append(t["name"])
 
