@@ -269,10 +269,10 @@ def get_user(db, name):
         "correct_line": 5,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_fstring", "code": "import inspect; src = inspect.getsource(get_user); assert \"f'\" not in src and 'f\"' not in src"},
+            {"name": "test_no_fstring", "code": "assert \"f'\" not in fixed_code and 'f\"' not in fixed_code, 'no f-string in query'"},
         ],
         "passing_tests": [
-            {"name": "test_parameterized", "code": "import inspect; src = inspect.getsource(get_user); assert '?' in src or '%s' in src"},
+            {"name": "test_parameterized", "code": "assert '?' in fixed_code or '%s' in fixed_code, 'must use parameterized query'"},
         ],
     },
 
@@ -291,10 +291,10 @@ def hash_password(password):
         "correct_line": 3,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_md5", "code": "import inspect; src = inspect.getsource(hash_password); assert 'md5' not in src"},
+            {"name": "test_no_md5", "code": "assert 'md5' not in fixed_code.lower(), 'md5 must be removed'"},
         ],
         "passing_tests": [
-            {"name": "test_sha256", "code": "import inspect; src = inspect.getsource(hash_password); assert 'sha256' in src"},
+            {"name": "test_sha256", "code": "assert 'sha256' in fixed_code.lower(), 'must use sha256'"},
         ],
     },
 
@@ -314,10 +314,10 @@ def run_command(user_input):
         "correct_line": 3,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_shell_true", "code": "import inspect; src = inspect.getsource(run_command); assert 'shell=True' not in src"},
+            {"name": "test_no_shell_true", "code": "assert 'shell=True' not in fixed_code, 'shell=True must be removed'"},
         ],
         "passing_tests": [
-            {"name": "test_uses_list", "code": "import inspect; src = inspect.getsource(run_command); assert 'shell=False' in src or 'shell' not in src"},
+            {"name": "test_uses_list", "code": "assert 'shell=False' in fixed_code or 'shell' not in fixed_code, 'must disable shell'"},
         ],
     }
 ]
