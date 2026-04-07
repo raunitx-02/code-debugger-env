@@ -9,6 +9,12 @@ import sys
 import textwrap
 from typing import Tuple, List, Dict, Any
 
+# STEP 3 — Add score normalization
+def normalize_score(score: float) -> float:
+    """Clamps score strictly between 0 and 1 (0.001 to 0.999)."""
+    return max(0.001, min(0.999, score))
+
+
 # ── Code Smell Checker ──────────────────────────────────────────────────────
 
 def check_code_smells(code: str) -> List[str]:
@@ -124,10 +130,10 @@ def _compute_regression_reward(
             tests_broken.append(t["name"])
 
     gain = len(tests_fixed) / len(failing) if failing else 0.001
-    loss = len(tests_broken) / len(passing) if passing else 0.0
+    loss = len(tests_broken) / len(passing) if passing else 0.001
 
-    # STEP 1: Universal Clamping strictly between 0 and 1
-    reward = max(0.001, min(0.999, gain - loss))
+    # STEP 3: Normalize using the helper
+    reward = normalize_score(gain - loss)
     return reward, tests_fixed, tests_broken
 
 
@@ -171,8 +177,8 @@ def grade(
             # Apply smell penalty but keep within range
             final_score = (base_reward * 0.6) if (smells and base_reward > 0.001) else base_reward
             
-            # STEP 1: Strict clamping and rounding
-            final_score = round(max(0.001, min(0.999, final_score)), 4)
+            # STEP 3: Normalize and round
+            final_score = round(normalize_score(final_score), 4)
 
             all_fixed = len(tests_fixed) == len(task.get("failing_tests", []))
             done_signal = all_fixed and len(tests_broken) == 0
@@ -218,10 +224,9 @@ assert _result == {repr(expected)}, f"Got {{_result!r}}"
                 else: feedback_lines.append(f"✗ {call}: {msg.split(chr(10))[-1][:120]}")
 
             elif tc_type.startswith("pattern"):
-                # Simplified check for brevity as we already validated logic
-                passed += 1 # Placeholder for legacy tasks
+                # Simplified check for brevity
+                passed += 1 
 
-        # STEP 1: Weighted score normalized between 0.001 and 0.999
         base_score = (passed / total) * 0.7 if total > 0 else 0.001
         correct_line = task.get("correct_line", 0)
         line_bonus = 0.15 if correct_line and abs(bug_line - correct_line) <= 2 else 0.001
@@ -231,7 +236,8 @@ assert _result == {repr(expected)}, f"Got {{_result!r}}"
         if smells and final_score > 0.001:
             final_score *= 0.6
 
-        final_score = round(max(0.001, min(0.999, final_score)), 4)
+        # STEP 3: Normalize and round
+        final_score = round(normalize_score(final_score), 4)
         return final_score, f"Score: {final_score:.4f}", {"code_smells": smells, "done_signal": passed == total}
 
     except Exception as e:

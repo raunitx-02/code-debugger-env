@@ -6,7 +6,7 @@ Score range compliant: 0.001 to 0.999.
 from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
 from tasks import TASKS, get_randomized_task
-from grader import grade
+from grader import grade, normalize_score
 from typing import Optional
 import random
 import uuid
@@ -36,7 +36,7 @@ class CodeDebuggerEnvironment(Environment):
         if seed is not None:
             random.seed(seed)
 
-        # STEP 4: Support randomized bug generation for higher score
+        # Support randomized bug generation for higher score
         target_id = kwargs.get("task_id")
         task = None
         
@@ -63,6 +63,9 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
+        # STEP 2 & 3: Normalize using the helper
+        initial_reward = normalize_score(0.0)
+
         return CodeDebugObservation(
             task_id=task["task_id"],
             code_snippet=task["code_snippet"],
@@ -73,7 +76,7 @@ class CodeDebuggerEnvironment(Environment):
             score_so_far=0.001,
             difficulty=task["difficulty"],
             done=False,
-            reward=0.001,
+            reward=initial_reward,
             metadata={"task_id": task["task_id"]}
         )
 
@@ -96,6 +99,9 @@ class CodeDebuggerEnvironment(Environment):
             bug_line=action.bug_line,
             bug_type=action.bug_type,
         )
+
+        # Ensure score is normalized (already done in grade, but for safety)
+        score = normalize_score(score)
 
         if score > self._state.best_score:
             self._state.best_score = score
