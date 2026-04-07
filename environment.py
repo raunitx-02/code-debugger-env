@@ -63,9 +63,7 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
-        # STEP 2 & 3: Normalize using the helper
-        initial_reward = normalize_score(0.0)
-
+        # STEP 11: Return literal 0.0 for reset observation (internal floor stays 0.001)
         return CodeDebugObservation(
             task_id=task["task_id"],
             code_snippet=task["code_snippet"],
@@ -73,10 +71,10 @@ class CodeDebuggerEnvironment(Environment):
             test_hint=task["test_hint"],
             feedback="",
             attempt_number=1,
-            score_so_far=0.001,
+            score_so_far=0.0,
             difficulty=task["difficulty"],
             done=False,
-            reward=initial_reward,
+            reward=0.0,
             metadata={"task_id": task["task_id"]}
         )
 

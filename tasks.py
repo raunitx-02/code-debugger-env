@@ -197,6 +197,34 @@ TASKS = [
         ],
     },
 
+    # ── MEDIUM 4 (Regression Oracle) ───────────────────────────────────────────
+    {
+        "task_id": "medium_04",
+        "difficulty": "medium",
+        "code_snippet": '''def find_duplicates(lst):
+    seen = set()
+    duplicates = set()
+    for item in lst:
+        if item in seen:
+            duplicates.add(item)
+        seen.add(item)
+    return seen''',
+        "task_description": (
+            "find_duplicates should return the set of elements that appear more than once. "
+            "The bug is returning 'seen' instead of 'duplicates' at the end."
+        ),
+        "test_hint": "Tested with: [1,2,2,3,3,3]→{2,3}, [1,2,3]→set(), [1,1]→{1}",
+        "correct_line": 8,
+        "correct_bug_type": "logic",
+        "failing_tests": [
+            {"name": "test_duplicates", "code": "assert find_duplicates([1, 2, 2, 3, 3, 3]) == {2, 3}"},
+            {"name": "test_single_dup", "code": "assert find_duplicates([1, 1]) == {1}"},
+        ],
+        "passing_tests": [
+            {"name": "test_no_dups", "code": "assert find_duplicates([1, 2, 3]) == set()"},
+        ],
+    },
+
     # ── HARD 1 (Regression Oracle) ─────────────────────────────────────────────
     {
         "task_id": "hard_01",
@@ -248,56 +276,57 @@ def get_user(db, name):
         ],
     },
 
-    # ── STEP 3: NEW TASK CATEGORY — Project-Based (Multi-File) ─────────────────
+    # ── HARD 3 (Hashing) ───────────────────────────────────────────────────────
     {
-        "task_id": "multi_file_01",
+        "task_id": "hard_03",
         "difficulty": "hard",
-        "code_snippet": '''# --- project_structure/auth.py ---
-import hashlib
-def hash_pswd(password):
-    # SECURITY BUG: Using md5 is insecure for password hashing
-    return hashlib.md5(password.encode()).hexdigest()
-
-# --- project_structure/api.py ---
-from auth import hash_pswd
-def create_user(username, pswd):
-    token = hash_pswd(pswd)
-    return {"user": username, "token": token}''',
+        "code_snippet": '''import hashlib
+def hash_password(password):
+    return hashlib.md5(password.encode()).hexdigest()''',
         "task_description": (
-            "Multi-file Project Bug: The 'auth.py' module uses insecure hashlib.md5(). "
-            "The agent must identify the insecure hash in auth.py and replace it with hashlib.sha256()."
+            "Security bug: MD5 is cryptographically broken for password hashing. "
+            "Replace hashlib.md5 with hashlib.sha256."
         ),
-        "test_hint": "Replace md5 with sha256 in the auth.py section of the snippet.",
-        "correct_line": 5,
+        "test_hint": "The fixed code must NOT contain 'md5' and MUST contain 'sha256'.",
+        "correct_line": 3,
         "correct_bug_type": "security",
         "failing_tests": [
-            {"name": "test_no_md5", "code": "assert 'md5' not in code_snippet, 'md5 matches insecure pattern'"},
+            {"name": "test_no_md5", "code": "import inspect; src = inspect.getsource(hash_password); assert 'md5' not in src"},
         ],
         "passing_tests": [
-            {"name": "test_uses_sha256", "code": "assert 'sha256' in code_snippet, 'must upgrade to sha256'"},
-            {"name": "test_api_ref", "code": "assert 'from auth import hash_pswd' in code_snippet, 'do not break imports'"},
+            {"name": "test_sha256", "code": "import inspect; src = inspect.getsource(hash_password); assert 'sha256' in src"},
+        ],
+    },
+
+    # ── HARD 4 (Command Injection) ─────────────────────────────────────────────
+    {
+        "task_id": "hard_04",
+        "difficulty": "hard",
+        "code_snippet": '''import subprocess
+def run_command(user_input):
+    result = subprocess.run(user_input, shell=True, capture_output=True, text=True)
+    return result.stdout''',
+        "task_description": (
+            "Security bug: OS command injection via shell=True. "
+            "Fix by passing the command as a list and setting shell=False."
+        ),
+        "test_hint": "The fixed code must NOT contain 'shell=True'.",
+        "correct_line": 3,
+        "correct_bug_type": "security",
+        "failing_tests": [
+            {"name": "test_no_shell_true", "code": "import inspect; src = inspect.getsource(run_command); assert 'shell=True' not in src"},
+        ],
+        "passing_tests": [
+            {"name": "test_uses_list", "code": "import inspect; src = inspect.getsource(run_command); assert 'shell=False' in src or 'shell' not in src"},
         ],
     }
 ]
 
-# STEP 4: Dynamic Task Template Helper
+# STEP 3: Safe Randomized Task Selection
 def get_randomized_task():
-    """Generates a randomized variation of a task to prevent agent memorization."""
-    # Only randomize easy/medium tasks for now to ensure grader stability
+    """Returns a copy of a random easy/medium task with a unique dynamic ID."""
+    import copy
     base_task = random.choice([t for t in TASKS if t["difficulty"] != "hard"])
-    
-    # Randomize variable names
-    var_map = {
-        "lst": random.choice(["items", "nums", "data", "collection"]),
-        "result": random.choice(["out", "final", "acc", "output"]),
-        "count": random.choice(["total", "val", "n_items", "acc"]),
-    }
-    
-    task_copy = base_task.copy()
-    code = task_copy["code_snippet"]
-    for old, new in var_map.items():
-        code = code.replace(old, new)
-    
-    task_copy["code_snippet"] = code
-    task_copy["task_id"] = f"dynamic_{base_task['task_id']}_{random.randint(100,999)}"
+    task_copy = copy.deepcopy(base_task)
+    task_copy["task_id"] = f"dynamic_{base_task['task_id']}_{random.randint(100, 999)}"
     return task_copy

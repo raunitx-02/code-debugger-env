@@ -9,20 +9,30 @@ import json
 import time
 import re
 import subprocess
-import signal
 import requests
 from typing import List, Any, Optional
 from openai import OpenAI
 
-# STEP 1: Removed OpenEnv client library imports for validator compatibility
-# Using 'requests' to call endpoints directly at localhost:7860
+# STEP 10: Dynamically set NUM_EPISODES based on TASKS list
+sys.path.insert(0, os.path.dirname(__file__))
+try:
+    from tasks import TASKS as _TASKS
+    NUM_EPISODES = len(_TASKS)
+except Exception:
+    NUM_EPISODES = 12
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.1-8B-Instruct")
-API_KEY     = os.getenv("HF_TOKEN")
+API_KEY      = os.getenv("HF_TOKEN")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
+
+# STEP 9: Fallback ENV_BASE_URL resolution for Hugging Face Spaces
+HF_SPACE_ID = os.getenv("HF_SPACE_ID", "")
+if HF_SPACE_ID and ENV_BASE_URL == "http://localhost:7860":
+    space_owner, space_name = HF_SPACE_ID.split("/") if "/" in HF_SPACE_ID else ("", HF_SPACE_ID)
+    ENV_BASE_URL = f"https://{space_owner.lower()}-{space_name.lower()}.hf.space"
+
 BENCHMARK    = "code-debugger"
-NUM_EPISODES = 12
 MAX_ATTEMPTS = 3
 
 SYSTEM_PROMPT = """You are BugHunterRL, an expert Python security auditor and debugger.
@@ -40,11 +50,12 @@ Example Output:
   "bug_line": 4,
   "bug_type": "security",
   "explanation": "Using md5 for password hashing is insecure. Replacing with sha256.",
-  "fixed_code": "import hashlib\ndef hash_password(p):\n    return hashlib.sha256(p.encode()).hexdigest()"
+  "fixed_code": "import hashlib\\ndef hash_password(p):\\n    return hashlib.sha256(p.encode()).hexdigest()"
 }"""
 
 
 def log_start(episode_num: int, task_id: str, model: str) -> None:
+    # STEP 8: Literal brackets
     print(f"[START] task={task_id} env={BENCHMARK} model={model}", flush=True)
 
 
@@ -52,22 +63,14 @@ def log_step(step: int, bug_type: str, bug_line: int, reward: float, done: bool,
     action_str = f"{bug_type}:line{bug_line}"
     error_val  = error if error else "null"
     done_val   = str(done).lower()
+    # STEP 8: Literal brackets
     print(f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
 
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    # STEP 8: Literal brackets
     print(f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
-
-
-def start_local_server():
-    proc = subprocess.Popen(
-        [sys.executable, "app.py"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    time.sleep(5)
-    return proc
 
 
 def parse_llm_action(response_text: str) -> dict:
@@ -91,7 +94,6 @@ def parse_llm_action(response_text: str) -> dict:
 
 
 def build_user_message(obs: Any, attempt: int) -> str:
-    # obs is a dictionary from the JSON response
     code         = obs.get("code_snippet", "")
     task_desc    = obs.get("task_description", "")
     hint         = obs.get("test_hint", "")
@@ -117,7 +119,6 @@ Attempt {attempt} | Score so far: {score_so_far:.2f}
 
 
 def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
-    # STEP 2: Rewritten to use HTTP POST /reset
     reset_resp = requests.post(f"{base_url}/reset")
     reset_resp.raise_for_status()
     result = reset_resp.json()
@@ -149,7 +150,6 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
             resp_text   = completion.choices[0].message.content
             action_dict = parse_llm_action(resp_text)
 
-            # STEP 2: Rewritten to use HTTP POST /step
             step_resp = requests.post(
                 f"{base_url}/step",
                 json={"action": {
@@ -209,9 +209,8 @@ def main():
         # Health check
         try:
             requests.get(f"{ENV_BASE_URL}/health", timeout=2)
-            print("[DEBUG] Server unreachable or starting...", file=sys.stderr, flush=True)
         except Exception:
-            pass
+            print("[DEBUG] Server unreachable or starting...", file=sys.stderr, flush=True)
 
         if not API_KEY:
             print("[DEBUG] ERROR: HF_TOKEN environment variable is not set.", file=sys.stderr)
@@ -240,23 +239,12 @@ def main():
             print("[DEBUG] No episodes run.", file=sys.stderr)
             return
 
-        print("\n[DEBUG] ════════ FINAL SUMMARY ════════", file=sys.stderr)
+        all_scores    = [r["best_score"] for r in results]
+        def avg(lst): return sum(lst) / len(lst) if lst else 0.0
+
         easy_scores   = [r["best_score"] for r in results if r["difficulty"] == "easy"]
         medium_scores = [r["best_score"] for r in results if r["difficulty"] == "medium"]
         hard_scores   = [r["best_score"] for r in results if r["difficulty"] == "hard"]
-        all_scores    = [r["best_score"] for r in results]
-
-        def avg(lst): return sum(lst) / len(lst) if lst else 0.0
-
-        print(f"[DEBUG] Episodes : {total_episodes}", file=sys.stderr)
-        print(f"[DEBUG] Avg Score: {avg(all_scores):.3f}", file=sys.stderr)
-        print("[DEBUG] ────────────────────────────────", file=sys.stderr)
-        for res in results:
-            status = "PASS" if res["best_score"] >= 0.5 else "FAIL"
-            print(f"[DEBUG] {status} {res['task_id']:15s} | {res['difficulty']:6s} | {res['best_score']:.3f}", file=sys.stderr)
-        print("[DEBUG] ────────────────────────────────", file=sys.stderr)
-        print(f"[DEBUG] Runtime        : {time.time()-start_time:.1f}s", file=sys.stderr)
-        print("[DEBUG] ════════════════════════════════", file=sys.stderr)
 
         print(
             f"easy_avg={avg(easy_scores):.3f} "

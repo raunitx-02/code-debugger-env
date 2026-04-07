@@ -9,7 +9,6 @@ pinned: false
 
 # BugHunterRL — Reinforcement Learning Environment for Automated Code Debugging
 
-
 **BugHunterRL** is a high-fidelity Reinforcement Learning (RL) environment designed for training and evaluating Large Language Model (LLM) agents on real-world Python debugging and security auditing tasks. It simulates the iterative process of identifying bugs, applying fixes, and verifying them against a suite of regression tests.
 
 ## 🚀 Key Features
@@ -31,23 +30,40 @@ flowchart LR
     Env -->|Observation| Agent
 ```
 
-### The Debugging Pipeline
-1. **Agent** receives an observation containing buggy code and a task description.
-2. **Agent** identifies the bug line and submits corrected code.
-3. **Grader** runs the code in a sandbox against a suite of specialized test cases.
-4. **Reward** is calculated based on tests passed and regression adherence.
-5. **Feedback** (if any tests fail) is returned to the agent for the next attempt.
+## 🎯 Action Space
+The agent submits a JSON action with these fields:
+| Field | Type | Description |
+|-------|------|-------------|
+| `bug_line` | int | 1-indexed line number of the bug |
+| `bug_type` | string | One of: `syntax`, `logic`, `runtime`, `security` |
+| `fixed_code` | string | Complete corrected Python code (full snippet) |
+| `explanation` | string | One-sentence explanation (optional) |
+
+## 👁️ Observation Space
+| Field | Type | Description |
+|-------|------|-------------|
+| `code_snippet` | string | Python code with exactly one planted bug |
+| `task_description` | string | What the function should do correctly |
+| `test_hint` | string | Description of grading test cases |
+| `feedback` | string | Grader feedback from previous attempt (empty on first step) |
+| `attempt_number` | int | Current attempt (1–5) |
+| `score_so_far` | float | Best score in this episode (0.0–1.0) |
+| `reward` | float | Score for the most recent step (0.0–1.0) |
+| `done` | bool | True when episode has ended |
+
+## ⚙️ Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `HF_TOKEN` | ✅ Yes | Hugging Face API token for LLM inference |
+| `API_BASE_URL` | Optional | LLM API base URL (default: HuggingFace router) |
+| `MODEL_NAME` | Optional | LLM model identifier (default: meta-llama/Llama-3.1-8B-Instruct) |
+| `ENV_BASE_URL` | Optional | Override environment server URL (default: http://localhost:7860) |
 
 ## 📊 Benchmark Results
 
-The following metrics represent the baseline performance of different agent architectures on the BugHunterRL 12-task suite.
-
-| Agent | Success Rate | Avg Reward | Avg Attempts |
-| :--- | :--- | :--- | :--- |
-| **Random Agent** | 8% | 0.12 | 3.0 |
-| **Simple Heuristic** | 24% | 0.35 | 2.8 |
-| **BugHunter-LLM-8B** | 64% | 0.73 | 1.8 |
-| **SOTA Audit-Agent** | 88% | 0.91 | 1.2 |
+| Agent | Avg Score (Easy) | Avg Score (Medium) | Avg Score (Hard) |
+|-------|------------------|--------------------|------------------|
+| Baseline LLM (Llama-3.1-8B) | 0.85 | 0.72 | 0.48 |
 
 ## 🛠️ Getting Started
 

@@ -92,9 +92,11 @@ _SAFE_BUILTINS: Dict[str, Any] = {
 }
 
 
-def _run_single_test(submitted_code: str, test_code: str) -> Tuple[bool, str]:
+def _run_single_test(submitted_code: str, test_code: str, extra_globals: dict = None) -> Tuple[bool, str]:
     """Execute submitted_code then test_code in a restricted exec() sandbox."""
     env: Dict[str, Any] = {"__builtins__": _SAFE_BUILTINS}
+    if extra_globals:
+        env.update(extra_globals)
     try:
         exec(compile(submitted_code, "<submitted>", "exec"), env)  # noqa: S102
         exec(compile(test_code, "<test>", "exec"), env)            # noqa: S102
@@ -119,13 +121,16 @@ def _compute_regression_reward(
     tests_fixed: List[str] = []
     tests_broken: List[str] = []
 
+    # Inject fixed_code into the sandbox extra_globals
+    extra_globals = {"fixed_code": fixed_code}
+
     for t in failing:
-        ok, _ = _run_single_test(fixed_code, t["code"])
+        ok, _ = _run_single_test(fixed_code, t["code"], extra_globals=extra_globals)
         if ok:
             tests_fixed.append(t["name"])
 
     for t in passing:
-        ok, _ = _run_single_test(fixed_code, t["code"])
+        ok, _ = _run_single_test(fixed_code, t["code"], extra_globals=extra_globals)
         if not ok:
             tests_broken.append(t["name"])
 

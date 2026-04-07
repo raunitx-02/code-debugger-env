@@ -50,18 +50,18 @@ observation_space:
       description: "Grader feedback from the previous attempt (empty on first step)"
     attempt_number:
       type: integer
-      description: "Current attempt number within this episode (1-3)"
+      description: "Current attempt number within this episode (1-5)"
     score_so_far:
-      type: float
+      type: number
       description: "Best score achieved so far in this episode (0.0-1.0)"
     done:
       type: boolean
       description: "True when the episode has ended"
     reward:
-      type: float
+      type: number
       description: "Score for the most recent step (0.0-1.0)"
 reward:
-  type: float
+  type: number
   min: 0.0
   max: 1.0
   description: >
@@ -71,12 +71,6 @@ tasks:
   - id: easy_01
     difficulty: easy
     description: "Fix off-by-one in list double calculator"
-  - id: medium_01
-    difficulty: medium
-    description: "Fix infinite recursion in summing logic"
-  - id: hard_01
-    difficulty: hard
-    description: "Fix mutable default argument in class constructor"
   - id: easy_02
     difficulty: easy
     description: "Fix IndexError in palindrome checker"
@@ -86,6 +80,9 @@ tasks:
   - id: easy_04
     difficulty: easy
     description: "Fix product initialised to 0 instead of 1 in multiply_list"
+  - id: medium_01
+    difficulty: medium
+    description: "Fix infinite recursion in summing logic"
   - id: medium_02
     difficulty: medium
     description: "Fix TypeError / float division in binary search"
@@ -95,6 +92,9 @@ tasks:
   - id: medium_04
     difficulty: medium
     description: "Fix wrong return variable (seen vs duplicates) in find_duplicates"
+  - id: hard_01
+    difficulty: hard
+    description: "Fix mutable default argument in class constructor"
   - id: hard_02
     difficulty: hard
     description: "Fix SQL injection vulnerability"
@@ -104,7 +104,7 @@ tasks:
   - id: hard_04
     difficulty: hard
     description: "Fix OS command injection via shell=True subprocess"
-max_episode_steps: 3
+max_episode_steps: 5
 inference_timeout: 1200
 baseline_scores:
   easy_avg: 0.85

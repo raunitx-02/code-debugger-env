@@ -28,10 +28,23 @@ original_register = http_server.HTTPEnvServer.register_routes
 def patched_register(self, app: Any) -> None:
     original_register(self, app)
     from fastapi.routing import APIRoute
+    
     # Manually filter existing /health route so our new one takes precedence.
     app.router.routes = [r for r in app.router.routes if not (isinstance(r, APIRoute) and r.path == "/health")]
+    
     @app.get("/health")
     def health(): return {"status": "ok"}
+    
+    # STEP 17: Add metadata endpoint
+    @app.get("/metadata")
+    def metadata():
+        return {
+            "name": "code-debugger-env",
+            "version": "1.0.0",
+            "description": "BugHunterRL: RL environment for automated code debugging",
+            "tasks": 12,
+            "max_episode_steps": 5
+        }
 
 # Apply the patches to the framework classes before instantiation.
 http_server.HTTPEnvServer._serialize_observation = patched_serialize
