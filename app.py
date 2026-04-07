@@ -51,10 +51,16 @@ class ClampRewardMiddleware(BaseHTTPMiddleware):
                 body = _json.dumps(data).encode()
             except Exception:
                 pass
+            
+            # ── FIX: Correctly handle modified body headers ──────────────────
+            headers = dict(response.headers)
+            headers.pop("content-length", None)
+            headers.pop("content-encoding", None)
+            
             return StarResponse(
                 content=body,
                 status_code=response.status_code,
-                headers=dict(response.headers),
+                headers=headers,
                 media_type="application/json",
             )
         return response
