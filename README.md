@@ -58,9 +58,23 @@ BugHunterRL is a production-grade OpenEnv environment for training and evaluatin
 | `/reset` | POST | Start new episode, returns first observation |
 | `/step` | POST | Submit action, returns reward + observation |
 | `/state` | GET | Returns current episode state |
-| `/health` | GET | Health check — returns {"status": "ok"} |
+| `/health` | GET | Health check — returns {"status": "healthy"} |
 | `/metadata` | GET | Environment metadata |
 | `/stats` | GET | Live runtime statistics |
+| `/schema` | GET | Returns JSON schemas for actions, observations, and state |
+
+---
+
+## Verified Deployment
+
+The BugHunterRL environment is publicly deployed and reachable on Hugging Face Spaces. The API has been manually verified on the live Space to ensure zero-latency readiness for evaluation.
+
+- Root: https://raunit19-code-debugger-env.hf.space/
+- Health: https://raunit19-code-debugger-env.hf.space/health
+- Metadata: https://raunit19-code-debugger-env.hf.space/metadata
+- Stats: https://raunit19-code-debugger-env.hf.space/stats
+- Swagger Docs: https://raunit19-code-debugger-env.hf.space/docs
+- OpenAPI JSON: https://raunit19-code-debugger-env.hf.space/openapi.json
 
 ---
 
@@ -74,6 +88,40 @@ Agents submit a CodeDebugAction to /step:
 | `bug_type` | str | logic / runtime / security / mutable_state / syntax |
 | `fixed_code` | str | Complete corrected Python snippet |
 | `explanation` | str | Technical explanation of the fix |
+
+### Example `/step` Interaction
+
+This is an illustrative example of how agents interact with the environment:
+
+```json
+{
+  "action": {
+    "bug_line": 2,
+    "bug_type": "logic",
+    "fixed_code": "def double_all(lst):\n    result = []\n    for i in range(len(lst)):\n        result.append(lst[i] * 2)\n    return result",
+    "explanation": "Fixed the off-by-one bug by iterating across the full list instead of len(lst) - 1."
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "observation": {
+    "task_id": "easy_01",
+    "code_snippet": "def double_all(lst):\n    result = []\n    for i in range(len(lst) - 1):\n        result.append(lst[i] * 2)\n    return result",
+    "task_description": "double_all should return a new list with every element doubled. The current implementation has an off-by-one error — it skips the last element.",
+    "test_hint": "Tested with: ->, ->, []->[], result must be a list",
+    "feedback": "All failing tests fixed. No regressions introduced.",
+    "attempt_number": 1,
+    "score_so_far": 0.999,
+    "difficulty": "easy"
+  },
+  "reward": 0.999,
+  "done": true
+}
+```
 
 ---
 
@@ -105,6 +153,18 @@ Agents submit a CodeDebugAction to /step:
 - Hard security tasks verify removal of dangerous patterns and presence of safe alternatives
 
 All scores strictly clamped between 0.001 and 0.999.
+
+---
+
+## Why this environment is hard for agents
+
+BugHunterRL is designed as a meaningful RL benchmark that tests rigorous reasoning rather than simple pattern matching:
+
+- **Regression Test Oracle**: Agents must fix specific failing tests without breaking existing passing behavior; rewards are highly sensitive to regressions.
+- **Security-aware tasks**: Hard tasks require removing deep-seated vulnerabilities like SQL injection, weak hashes, and unsafe shell usage rather than superficial edits.
+- **Code-smell penalty**: AST-based penalty for `eval()`/`exec()`, bare `except:`, hardcoded secrets, and infinite loops discourages mechanical reward hacking.
+- **Multi-step reasoning**: Significant bugs involve mutable default arguments or cross-module inconsistencies, which cannot be solved by single-line patches.
+- **Randomized variants**: A portion of task variants are randomized to reduce memorization and force agents to generalize their debugging logic.
 
 ---
 
@@ -162,7 +222,7 @@ python server/app.py
 ### Verify
 ```bash
 curl http://localhost:7860/health
-# {"status": "ok"}
+# {"status": "healthy"}
 ```
 
 ---
@@ -176,3 +236,25 @@ export HF_TOKEN="your_token_here"
 export ENV_BASE_URL="http://localhost:7860"
 python inference.py
 ```
+
+Evaluator-facing logs are emitted through the standardized `[START]`, `[STEP]`, and `[END]` format for deterministic parsing.
+
+---
+
+## Reproduce in 60 seconds
+
+Follow these steps to quickly verify the environment and baseline evaluation.
+
+1. Open the live Space: https://raunit19-code-debugger-env.hf.space/
+2. Check the health endpoint: `/health` should return `{"status": "healthy"}`.
+3. Use `/docs` to call `POST /reset` and inspect the initial observation.
+4. Run the baseline evaluation script locally:
+
+```bash
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
+export HF_TOKEN="your_huggingface_token"
+python inference.py
+```
+
+`inference.py` emits standardized `[START]`, `[STEP]`, and `[END]` logs to stdout for the OpenEnv evaluator.
