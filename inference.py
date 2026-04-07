@@ -63,14 +63,16 @@ def log_step(step: int, bug_type: str, bug_line: int, reward: float, done: bool,
     action_str = f"{bug_type}:line{bug_line}"
     error_val  = error if error else "null"
     done_val   = str(done).lower()
-    # STEP 8: Literal brackets
-    print(f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
+    # ── FIX: Clamp and increase precision to prevent rounding to 0.0 or 1.0 ────
+    safe_reward = max(0.001, min(0.999, float(reward)))
+    print(f"[STEP] step={step} action={action_str} reward={safe_reward:.4f} done={done_val} error={error_val}", flush=True)
 
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    # STEP 8: Literal brackets
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
+    # ── FIX: Clamp and increase precision to prevent rounding to 0.0 or 1.0 ────
+    safe_score = max(0.001, min(0.999, float(score)))
+    rewards_str = ",".join(f"{max(0.001, min(0.999, float(r))):.4f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={safe_score:.4f} rewards={rewards_str}", flush=True)
 
 
 def parse_llm_action(response_text: str) -> dict:
