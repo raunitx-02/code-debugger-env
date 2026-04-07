@@ -1,3 +1,12 @@
+---
+title: Code Debugger Env
+emoji: 🐞
+colorFrom: red
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # BugHunterRL: Reinforcement Learning for Automated Code Debugging
 
 ![OpenEnv Badge](https://img.shields.io/badge/OpenEnv-v0.2.1-blue?style=flat-square)
