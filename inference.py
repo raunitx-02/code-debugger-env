@@ -8,7 +8,7 @@ import sys
 import json
 import time
 import re
-import subprocess
+
 import requests
 from typing import List, Any, Optional
 from openai import OpenAI

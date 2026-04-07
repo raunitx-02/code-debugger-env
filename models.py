@@ -44,6 +44,8 @@ class CodeDebugState(State):
     Internal environment state.
     Inherits from State base (episode_id, step_count).
     """
+    episode_id: str = "none"
+    step_count: int = 0
     task_id: str = ""
     difficulty: str = ""
     max_attempts: int = 3

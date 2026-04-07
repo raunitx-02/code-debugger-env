@@ -49,7 +49,7 @@ def patched_register(self, app: Any) -> None:
     def metadata():
         return {
             "name": "code-debugger-env",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "description": "BugHunterRL: RL environment for automated code debugging",
             "tasks": 12,
             "max_episode_steps": 5,

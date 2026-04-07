@@ -1,5 +1,5 @@
 name: code-debugger-env
-version: "1.0.0"
+version: "1.1.0"
 description: >
   A real-world Python code debugging environment where AI agents identify bugs 
   and provide corrected code. Covers 12 tasks across 4 difficulty-tiered bug categories: 
