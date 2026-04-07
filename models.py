@@ -1,28 +1,25 @@
 """
-models.py — Data structures for Code Debugger OpenEnv Environment
-Uses standard @dataclass(kw_only=True) for full compatibility with openenv_core 0.1.1 in Python 3.10+.
+models.py — Data structures for Code Debugger OpenEnv Environment (Pydantic Edition)
+Hardened for openenv_core 0.2.1+ using Pydantic BaseModel.
 """
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
+from pydantic import Field, field_validator
 from openenv_core.env_server.interfaces import Action, Observation, State
 
-@dataclass(kw_only=True)
 class CodeDebugAction(Action):
     """
-    Action submitted by the agent.
-    Inherits 'metadata: Dict[str, Any]' from Action base.
+    Action submitted by the AI agent.
+    Inherits from pydantic.BaseModel (Action).
     """
     bug_line: int
     bug_type: str
     fixed_code: str
     explanation: str = ""
 
-@dataclass(kw_only=True)
 class CodeDebugObservation(Observation):
     """
-    What the agent observes.
-    Inherits from Observation base (done, reward, metadata).
-    Must be a dataclass for openenv_core serializer (asdict) to work correctly.
+    What the agent sees from the environment.
+    Native range clamping via Pydantic validators.
     """
     task_id: str
     code_snippet: str
@@ -30,22 +27,29 @@ class CodeDebugObservation(Observation):
     test_hint: str
     feedback: str = ""
     attempt_number: int = 1
-    score_so_far: float = 0.001
+    score_so_far: float = Field(default=0.001)
     difficulty: str = "unknown"
     
-    # We must explicitly re-define these fields to ensure asdict() recognizes them in 3.11.
+    # Override/Refine Observation fields
     done: bool = False
-    reward: Optional[float] = 0.001
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    reward: float = Field(default=0.001)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
-@dataclass(kw_only=True)
+    @field_validator("reward", "score_so_far", mode="before")
+    @classmethod
+    def clamp_range(cls, v: Any) -> float:
+        """Enforce 0 < score < 1 (strictly between 0 and 1)."""
+        try:
+            val = float(v)
+            return max(0.001, min(0.999, val))
+        except (ValueError, TypeError):
+            return 0.001
+
 class CodeDebugState(State):
     """
-    Internal environment state.
-    Inherits from State base (episode_id, step_count).
+    Internal persistent state for concurrent sessions.
+    Inherits from pydantic.BaseModel (State).
     """
-    episode_id: str = "none"
-    step_count: int = 0
     task_id: str = ""
     difficulty: str = ""
     max_attempts: int = 3
