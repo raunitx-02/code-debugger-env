@@ -4,7 +4,6 @@ from models import CodeDebugAction, CodeDebugObservation
 from environment import CodeDebuggerEnvironment
 
 # Initialize the environment instance
-# In 0.2.x, create_app treats this as a factory if it's a class or callable.
 env = CodeDebuggerEnvironment()
 
 # Create the standard FastAPI app
@@ -28,6 +27,7 @@ def metadata():
     }
 
 def main():
+    # Use string reference to allow reload if needed, though not standard for production
     uvicorn.run(app, host="0.0.0.0", port=7860)
 
 if __name__ == "__main__":
