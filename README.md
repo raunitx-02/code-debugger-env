@@ -9,108 +9,131 @@ pinned: false
 
 # BugHunterRL: Reinforcement Learning for Automated Code Debugging
 
-![OpenEnv Badge](https://img.shields.io/badge/OpenEnv-v0.2.1-blue?style=flat-square)
-![Hackathon](https://img.shields.io/badge/Meta%20%C3%97%20PyTorch-OpenEnv%20Hackathon-blueviolet?style=flat-square)
-
-**BugHunterRL (code-debugger-env)** is a production-grade OpenEnv environment designed for training and evaluating RL agents on real-world Python debugging and security auditing tasks. It bridges the gap between synthetic benchmarks and the complexities of actual software development, featuring tiered difficulty levels, project-level logic simulations, and automated security grading.
+**BugHunterRL (code-debugger-env)** is a production-grade OpenEnv environment designed for training and evaluating RL agents on real-world Python debugging and security auditing tasks. It provides a high-fidelity playground for agents to identify logic flaws, resolve runtime errors, and mitigate critical security vulnerabilities.
 
 ---
 
 ## 🌟 Why This Matters for Meta × PyTorch
 
-BugHunterRL directly supports the mission of **Automated Software Engineering (ASE)** and **AI-Assisted Programming**. 
+BugHunterRL is built for the next generation of **Automated Software Engineering (ASE)** and **AI-Assisted Programming** research.
 
-1.  **PyTorch Training Loops**: The environment is highly optimized for integration with PyTorch-based RL frameworks (like `torchrl` or `StableBaselines3`).
-2.  **Llama-Family Support**: Designed for fine-tuning agents (like **Meta Llama 3.1 8B**) to recognize subtle logic flaws and security vulnerabilities (SQLi, Command Injection) that traditional linters miss.
-3.  **Cross-Module Logic**: Our "Hard" tasks simulate multi-file project dependencies, pushing agents beyond single-line fixes toward architectural understanding.
-
----
-
-## 🏗️ Architecture
-
-```mermaid
-graph TD
-    subgraph "Agent (RL Loop)"
-        A[Inference Script]
-    end
-    subgraph "BugHunterRL Environment (HF Space)"
-        B[FastAPI Wrapper]
-        C[CodeDebuggerEnvironment]
-        D[Regression Oracle Grader]
-        E[Security Pattern Grader]
-        F[Code Smell Penalty Layer]
-    end
-    A -- /reset --> B
-    B --> C
-    C -- Observation --> A
-    A -- /step (Action) --> B
-    B --> D
-    B --> E
-    B --> F
-    D & E & F -- Normalized Reward --> C
-    C -- Step Result --> A
-```
+*   **PyTorch Integration**: Highly optimized for high-throughput RL training loops using PyTorch-based frameworks like `torchrl` or `StableBaselines3`.
+*   **Llama-Family Benchmarking**: Specifically designed to evaluate the reasoning capabilities of **Meta Llama 3.1** models in identifying subtle security "sinks" (SQLi, Command Injection) and complex logic bugs.
+*   **Real-World Logic Simulation**: Our "Hard" tasks simulate project-level dependencies and "Code Smells," rewarding agents that produce clean, production-safe code.
 
 ---
 
-## 🚀 Getting Started
+## 🏗️ Environment Specifications
 
-### 1. Requirements
-- Python 3.10+
-- `openenv-core>=0.2.1`
+| Feature | Specification |
+| :--- | :--- |
+| **API Type** | RESTful OpenAI-compatible (FastAPI) |
+| **SDK Compatibility** | `openenv-core>=0.2.1` |
+| **Task Count** | 13 Graded Tasks |
+| **Difficulty Tiers** | Easy, Medium, Hard |
+| **Grading Logic** | Deterministic Regression Oracle + Security Pattern Detection |
+| **Reward Range** | Strictly (0.001, 0.999) |
+| **Deployment** | Docker-based Hugging Face Space |
 
-### 2. Fast Setup
+---
+
+## 🎮 Action Space
+
+Agents interact with the environment by submitting a `CodeDebugAction` (Pydantic Model) to the `/step` endpoint.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `bug_line` | `int` | The 1-indexed line number where the bug resides. |
+| `bug_type` | `str` | Category (`logic`, `runtime`, `security`). |
+| `fixed_code` | `str` | THE COMPLETE corrected Python snippet. |
+| `explanation` | `str` | A concise technical explanation of the fix. |
+
+---
+
+## 🔍 Observation Space
+
+The environment returns a `CodeDebugObservation` after every `reset()` or `step()`.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `code_snippet` | `str` | The buggy Python code to be audited. |
+| `task_description`| `str` | Detailed requirements and expected behavior. |
+| `test_hint` | `str` | Information about the test cases used for grading. |
+| `feedback` | `str` | Grader output from the previous attempt (on `step()`). |
+| `score_so_far` | `float` | Best score achieved in the current episode. |
+| `difficulty` | `str` | Task complexity (`easy`, `medium`, `hard`). |
+| `reward` | `float` | Delta reward for the latest action. |
+| `done` | `bool` | True when the episode has ended. |
+
+---
+
+## 📊 Evaluation & Reward Logic
+
+BugHunterRL uses a multi-layered grading system to ensure agent reliability:
+
+1.  **Regression Oracle**: Rewards agents for fixing `failing_tests` while subtractively penalizing them for breaking `passing_tests`.
+2.  **Security Grader**: Hard security tasks use regex-based pattern detection to verify the removal of dangerous sinks (e.g., `shell=True`) and the use of parameterized queries.
+3.  **Code Smell Penalty**: AST-based layer subtracts 40% of the score if the agent introduces dangerous patterns like `eval()`, `exec()`, or bare `except: pass`.
+4.  **Range Compliance**: All scores are strictly clamped between **0.001 and 0.999** for Phase-2 validator compliance.
+
+---
+
+## 🛠️ Task Design
+
+The environment features 13 tasks across three difficulty levels:
+*   **Easy**: Logic bugs such as off-by-one errors and indexing flaws.
+*   **Medium**: Algorithmic challenges including infinite recursion and list flattening.
+*   **Hard**: Critical security vulnerabilities (SQL Injection, Weak Hashing) and **Multi-File Logic Simulations** involving cross-module dependency bugs.
+
+---
+
+## 🚀 Quickstart
+
+### 1. Installation
 ```bash
 git clone https://huggingface.co/spaces/raunit19/code-debugger-env
 cd code-debugger-env
 pip install -r requirements.txt
 ```
 
-### 3. Run the Environment Locally
+### 2. Run Local Server
 ```bash
-# Serves the environment on port 7860
+export PYTHONPATH=$PYTHONPATH:.
 python server/app.py
 ```
 
-### 4. Run Baseline Inference
-Our baseline uses the native OpenAI-compatible client to call Meta Llama models.
+---
+
+## 🤖 Reproduce Baseline
+
+Our baseline uses the required OpenAI-compatible client to evaluate **Meta Llama 3.1 8B**.
+
+### 1. Environment Variables
 ```bash
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-export HF_TOKEN="your_hf_token"
-export ENV_BASE_URL="http://localhost:7860"
-
-python inference.py
+export HF_TOKEN="your_huggingface_token"
+export ENV_BASE_URL="http://localhost:7860" # Local or Space URL
 ```
 
----
-
-## 📊 Evaluation Design
-
-BugHunterRL implements a **Double-Layer Grading System**:
-
-| Component | Logic | Impact |
-| :--- | :--- | :--- |
-| **Regression Oracle** | Compares `failing_tests` (must pass) vs `passing_tests` (must not break). | core scoring |
-| **Security Pattern** | Regex-based detection of dangerous sinks or missing sanitizers. | hard task validation |
-| **Code Smell Penalty** | AST-based detection of `eval()`, `exec()`, or bare `except: pass`. | -40% score penalty |
-
-Scores are strictly normalized to **(0.001, 0.999)** to ensure deterministic evaluation and compliance with Phase-2 validator constraints.
+### 2. Execute Inference
+The `inference.py` script produces structured logs to `stdout` for the Phase-2 evaluator.
+```bash
+python inference.py
+```
+**Logging Compliance:** The script outputs structured sequences of `[START]`, `[STEP]`, and `[END]` with 4-decimal precision for deterministic validator parsing.
 
 ---
 
-## 🛠️ Task Categories
+## 📂 Repository Layout
 
-1.  **Easy**: Simple logic fixes (off-by-one errors, indexing).
-2.  **Medium**: Algorithmic bugs (recursion depth, list flattening logic).
-3.  **Hard**: Security Auditing (SQL Injection, Command Injection, Weak Hashing) and **Multi-File Project Simulation**.
-
----
-
-## 🔒 Security & Optimization
-- **Restricted Sandbox**: Grader runs submitted code in a restricted `exec()` sandbox with limited built-ins.
-- **2vCPU / 8GB Optimized**: The entire environment uses <200MB RAM and initializes in <2s, ideal for high-throughput RL training.
-- **Multimodal Ready**: Provides full task metadata via the `/metadata` and `/stats` endpoints.
+*   `server/app.py`: FastAPI entry point with enriched `/metadata` and `/stats`.
+*   `environment.py`: Core OpenEnv logic with session management.
+*   `models.py`: Hardened Pydantic v2 data models.
+*   `grader.py`: Multi-layer regression oracle and security grader.
+*   `tasks.py`: Catalog of 13 debugging challenges.
+*   `inference.py`: Standardized agent evaluation script.
+*   `openenv.yaml`: OpenEnv manifest with observation and task schemas.
 
 ---
 
