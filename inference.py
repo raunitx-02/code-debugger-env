@@ -190,7 +190,7 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
         last_error = str(e)
         print(f"[DEBUG] Episode crashed: {e}", file=sys.stderr, flush=True)
 
-    success = best_score >= 0.5
+    success = best_score >= 0.8
     log_end(success, total_steps, best_score, step_rewards)
 
     return {

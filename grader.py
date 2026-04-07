@@ -134,8 +134,11 @@ def _compute_regression_reward(
         if not ok:
             tests_broken.append(t["name"])
 
-    gain = len(tests_fixed) / len(failing) if failing else 0.001
-    loss = len(tests_broken) / len(passing) if passing else 0.001
+    gain = len(tests_fixed) / max(1, len(failing))
+    gain = max(0.001, min(0.999, gain))
+
+    loss = len(tests_broken) / max(1, len(passing))
+    loss = max(0.0, min(0.998, loss))
 
     # STEP 3: Normalize using the helper
     reward = normalize_score(gain - loss)
@@ -167,6 +170,8 @@ def grade(
     bug_type: str,
 ) -> Tuple[float, str, dict]:
     """Grade the agent's fix. Returns (score, feedback_str, info_dict)."""
+    def _clamp(s): return max(0.001, min(0.999, float(s)))
+
     try:
         if not fixed_code or not fixed_code.strip():
             # STEP 2: Minimum 0.001 floor
@@ -179,8 +184,8 @@ def grade(
             base_reward, tests_fixed, tests_broken = _compute_regression_reward(fixed_code, task)
             smells = check_code_smells(fixed_code)
 
-            # Apply smell penalty but keep within range
-            final_score = (base_reward * 0.6) if (smells and base_reward > 0.001) else base_reward
+            # FIX 9: Smell penalty ensures score >= 0.001
+            final_score = max(0.001, base_reward * 0.6) if (smells and base_reward > 0.001) else base_reward
             
             # STEP 3: Normalize and round
             final_score = round(normalize_score(final_score), 4)
@@ -202,7 +207,7 @@ def grade(
                 "regression_penalty": len(tests_broken) > 0,
                 "done_signal": done_signal,
             }
-            return final_score, "\n".join(fb_lines), info
+            return _clamp(final_score), "\n".join(fb_lines), info
 
         # ── Legacy subprocess grader (original tasks) ──────────────────────
         test_cases = task.get("test_cases", [])
@@ -243,7 +248,7 @@ assert _result == {repr(expected)}, f"Got {{_result!r}}"
 
         # STEP 3: Normalize and round
         final_score = round(normalize_score(final_score), 4)
-        return final_score, f"Score: {final_score:.4f}", {"code_smells": smells, "done_signal": passed == total}
+        return _clamp(final_score), f"Score: {final_score:.4f}", {"code_smells": smells, "done_signal": passed == total}
 
     except Exception as e:
         return 0.001, f"Grader error: {e}", {"code_smells": [], "regression_penalty": False}

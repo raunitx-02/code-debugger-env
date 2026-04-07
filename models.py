@@ -35,7 +35,7 @@ class CodeDebugObservation(Observation):
     
     # We must explicitly re-define these fields to ensure asdict() recognizes them in 3.11.
     done: bool = False
-    reward: Optional[float] = 0.0
+    reward: Optional[float] = 0.001
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass

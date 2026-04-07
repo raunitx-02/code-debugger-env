@@ -63,7 +63,7 @@ class CodeDebuggerEnvironment(Environment):
             best_score=0.001,
         )
 
-        # STEP 11: Return literal 0.0 for reset observation (internal floor stays 0.001)
+        # FIX 1: Return 0.001 (strictly between 0 and 1) for reset observation
         return CodeDebugObservation(
             task_id=task["task_id"],
             code_snippet=task["code_snippet"],
@@ -71,10 +71,10 @@ class CodeDebuggerEnvironment(Environment):
             test_hint=task["test_hint"],
             feedback="",
             attempt_number=1,
-            score_so_far=0.0,
+            score_so_far=0.001,
             difficulty=task["difficulty"],
             done=False,
-            reward=0.0,
+            reward=0.001,
             metadata={"task_id": task["task_id"]}
         )
 

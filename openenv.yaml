@@ -60,13 +60,6 @@ observation_space:
     reward:
       type: number
       description: "Score for the most recent step (0.0-1.0)"
-reward:
-  type: number
-  min: 0.0
-  max: 1.0
-  description: >
-    Composite score based on individual test pass rates with logic/location bonuses.
-    Includes a 40% "Code Smell" penalty for using eval(), exec(), or hardcoded secrets.
 tasks:
   - id: easy_01
     difficulty: easy
