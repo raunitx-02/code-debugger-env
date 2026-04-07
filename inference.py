@@ -19,7 +19,7 @@ try:
     from tasks import TASKS as _TASKS
     NUM_EPISODES = len(_TASKS)
 except Exception:
-    NUM_EPISODES = 12
+    NUM_EPISODES = 13
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.1-8B-Instruct")
@@ -135,7 +135,7 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
     best_score  = 0.0
     total_steps = 0
     last_error  = None
-    max_attempts = 5 if difficulty == "hard" else MAX_ATTEMPTS
+    max_attempts = 5  # Matches openenv.yaml max_episode_steps: 5 for all difficulties
 
     try:
         for attempt in range(1, max_attempts + 1):

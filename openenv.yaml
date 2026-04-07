@@ -2,11 +2,11 @@ name: code-debugger-env
 version: "1.1.0"
 description: >
   A real-world Python code debugging environment where AI agents identify bugs 
-  and provide corrected code. Covers 12 tasks across 4 difficulty-tiered bug categories: 
+  and provide corrected code. Covers 13 tasks across 3 difficulty-tiered bug categories: 
   runtime errors, logic bugs, critical security vulnerabilities (SQL injection, OS command 
   injection, weak hashing, unsafe eval), and mutable state bugs. Graders execute fixed code 
   in sandboxed subprocesses for fully deterministic, reproducible scoring. Includes a 
-  Regression Test Oracle (failing+passing tests) for all 12 tasks and a Code Smell Penalty 
+  Regression Test Oracle (failing+passing tests) for all 13 tasks and a Code Smell Penalty 
   to discourage dangerous patterns.
 author: raunit19
 tags:
@@ -25,7 +25,7 @@ action_space:
       description: "1-indexed line number of the bug in the code snippet"
     bug_type:
       type: string
-      enum: ["syntax", "logic", "runtime", "security"]
+      enum: ["syntax", "logic", "runtime", "security", "mutable_state"]
       description: "Category of the bug"
     fixed_code:
       type: string

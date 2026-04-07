@@ -50,6 +50,7 @@ class CodeDebugState(State):
     Internal persistent state for concurrent sessions.
     Inherits from pydantic.BaseModel (State).
     """
+    episode_id: str = ""
     task_id: str = ""
     difficulty: str = ""
     max_attempts: int = 3

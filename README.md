@@ -9,133 +9,168 @@ pinned: false
 
 # BugHunterRL: Reinforcement Learning for Automated Code Debugging
 
-**BugHunterRL (code-debugger-env)** is a production-grade OpenEnv environment designed for training and evaluating RL agents on real-world Python debugging and security auditing tasks. It provides a high-fidelity playground for agents to identify logic flaws, resolve runtime errors, and mitigate critical security vulnerabilities.
+> **Submission for Meta × PyTorch OpenEnv Hackathon @ Scaler**  
+> 13 real-world Python debugging tasks • Regression Test Oracle • Code Smell AST Penalty  
+> Deployed on Hugging Face Spaces • Docker • FastAPI • OpenEnv Core 0.2.1
+
+[![HF Space](https://img.shields.io/badge/🤗%20HuggingFace-Space-blue)](https://huggingface.co/spaces/raunit19/code-debugger-env)
+[![OpenEnv](https://img.shields.io/badge/OpenEnv-0.2.1-green)](https://github.com/openenv/openenv-core)
+[![PyTorch Ready](https://img.shields.io/badge/PyTorch-RL%20Ready-red)](https://pytorch.org)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 
 ---
 
-## 🌟 Why This Matters for Meta × PyTorch
+## 🌟 Why BugHunterRL?
 
-BugHunterRL is built for the next generation of **Automated Software Engineering (ASE)** and **AI-Assisted Programming** research.
+BugHunterRL is a production-grade OpenEnv environment for training and evaluating RL agents on real-world Python debugging and security auditing. Agents must fix actual bugs, pass regression tests, and avoid introducing dangerous code patterns.
 
-*   **PyTorch Integration**: Highly optimized for high-throughput RL training loops using PyTorch-based frameworks like `torchrl` or `StableBaselines3`.
-*   **Llama-Family Benchmarking**: Specifically designed to evaluate the reasoning capabilities of **Meta Llama 3.1** models in identifying subtle security "sinks" (SQLi, Command Injection) and complex logic bugs.
-*   **Real-World Logic Simulation**: Our "Hard" tasks simulate project-level dependencies and "Code Smells," rewarding agents that produce clean, production-safe code.
+| Capability | Description |
+|---|---|
+| **Regression Test Oracle** | Every task has failing_tests (must fix) + passing_tests (must not break) |
+| **Code Smell AST Penalty** | -40% score if agent introduces eval(), bare except, hardcoded secrets, or infinite loops |
+| **Security Grader** | Detects SQL injection, OS command injection, and weak hashing |
+| **Multi-File Simulation** | Hard tasks simulate cross-module dependency bugs |
+| **Dynamic Randomization** | 30% chance of randomized task variant to prevent memorization |
 
 ---
 
 ## 🏗️ Environment Specifications
 
 | Feature | Specification |
-| :--- | :--- |
+|---|---|
 | **API Type** | RESTful OpenAI-compatible (FastAPI) |
-| **SDK Compatibility** | `openenv-core>=0.2.1` |
+| **SDK** | openenv-core==0.2.1 |
 | **Task Count** | 13 Graded Tasks |
-| **Difficulty Tiers** | Easy, Medium, Hard |
-| **Grading Logic** | Deterministic Regression Oracle + Security Pattern Detection |
-| **Reward Range** | Strictly (0.001, 0.999) |
+| **Difficulty Tiers** | Easy (4), Medium (4), Hard (5) |
+| **Reward Range** | Strictly (0.001, 0.999) — Phase-2 validator compliant |
 | **Deployment** | Docker-based Hugging Face Space |
+| **Max Episode Steps** | 5 (all difficulties) |
+| **Inference Timeout** | 1200 seconds |
+
+---
+
+## 🔌 API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/reset` | POST | Start new episode, returns first observation |
+| `/step` | POST | Submit action, returns reward + observation |
+| `/state` | GET | Returns current episode state |
+| `/health` | GET | Health check — returns {"status": "ok"} |
+| `/metadata` | GET | Environment metadata |
+| `/stats` | GET | Live runtime statistics |
 
 ---
 
 ## 🎮 Action Space
 
-Agents interact with the environment by submitting a `CodeDebugAction` (Pydantic Model) to the `/step` endpoint.
+Agents submit a CodeDebugAction to /step:
 
 | Field | Type | Description |
-| :--- | :--- | :--- |
-| `bug_line` | `int` | The 1-indexed line number where the bug resides. |
-| `bug_type` | `str` | Category (`logic`, `runtime`, `security`). |
-| `fixed_code` | `str` | THE COMPLETE corrected Python snippet. |
-| `explanation` | `str` | A concise technical explanation of the fix. |
+|---|---|---|
+| `bug_line` | int | 1-indexed line number of the bug |
+| `bug_type` | str | logic / runtime / security / mutable_state / syntax |
+| `fixed_code` | str | Complete corrected Python snippet |
+| `explanation` | str | Technical explanation of the fix |
 
 ---
 
 ## 🔍 Observation Space
 
-The environment returns a `CodeDebugObservation` after every `reset()` or `step()`.
-
 | Field | Type | Description |
-| :--- | :--- | :--- |
-| `code_snippet` | `str` | The buggy Python code to be audited. |
-| `task_description`| `str` | Detailed requirements and expected behavior. |
-| `test_hint` | `str` | Information about the test cases used for grading. |
-| `feedback` | `str` | Grader output from the previous attempt (on `step()`). |
-| `score_so_far` | `float` | Best score achieved in the current episode. |
-| `difficulty` | `str` | Task complexity (`easy`, `medium`, `hard`). |
-| `reward` | `float` | Delta reward for the latest action. |
-| `done` | `bool` | True when the episode has ended. |
+|---|---|---|
+| `code_snippet` | str | Buggy Python code to debug |
+| `task_description` | str | Detailed requirements |
+| `test_hint` | str | Test case information |
+| `feedback` | str | Grader output from previous attempt |
+| `attempt_number` | int | Current attempt (1–5) |
+| `score_so_far` | float | Best score this episode |
+| `difficulty` | str | easy / medium / hard |
+| `reward` | float | Delta reward (0.001–0.999) |
+| `done` | bool | True when episode ends |
 
 ---
 
-## 📊 Evaluation & Reward Logic
+## 📊 Grading System
 
-BugHunterRL uses a multi-layered grading system to ensure agent reliability:
+### Layer 1: Regression Test Oracle
+- Reward = (tests_fixed / total_failing) − (tests_broken / total_passing)
 
-1.  **Regression Oracle**: Rewards agents for fixing `failing_tests` while subtractively penalizing them for breaking `passing_tests`.
-2.  **Security Grader**: Hard security tasks use regex-based pattern detection to verify the removal of dangerous sinks (e.g., `shell=True`) and the use of parameterized queries.
-3.  **Code Smell Penalty**: AST-based layer subtracts 40% of the score if the agent introduces dangerous patterns like `eval()`, `exec()`, or bare `except: pass`.
-4.  **Range Compliance**: All scores are strictly clamped between **0.001 and 0.999** for Phase-2 validator compliance.
+### Layer 2: Code Smell Penalty (AST-based)
+- Score × 0.6 (−40%) if agent introduces: eval()/exec(), bare except:, hardcoded credentials, or infinite while True loops
+
+### Layer 3: Security Pattern Detection
+- Hard security tasks verify removal of dangerous patterns and presence of safe alternatives
+
+All scores strictly clamped between 0.001 and 0.999.
 
 ---
 
-## 🛠️ Task Design
+## 🗂️ Task Catalog
 
-The environment features 13 tasks across three difficulty levels:
-*   **Easy**: Logic bugs such as off-by-one errors and indexing flaws.
-*   **Medium**: Algorithmic challenges including infinite recursion and list flattening.
-*   **Hard**: Critical security vulnerabilities (SQL Injection, Weak Hashing) and **Multi-File Logic Simulations** involving cross-module dependency bugs.
+### Easy (4 tasks)
+| Task ID | Bug | Type |
+|---|---|---|
+| easy_01 | Off-by-one in list doubler | logic |
+| easy_02 | IndexError in palindrome checker | runtime |
+| easy_03 | Missing assignment (count+1 vs count+=1) | logic |
+| easy_04 | Product initialized to 0 instead of 1 | logic |
+
+### Medium (4 tasks)
+| Task ID | Bug | Type |
+|---|---|---|
+| medium_01 | Infinite recursion (lst not sliced) | runtime |
+| medium_02 | Float division in binary search | runtime |
+| medium_03 | Wrong return variable | logic |
+| medium_04 | Wrong return variable | logic |
+
+### Hard (5 tasks)
+| Task ID | Bug | Type |
+|---|---|---|
+| hard_01 | Mutable default argument | mutable_state |
+| hard_02 | SQL Injection via f-string | security |
+| hard_03 | Weak MD5 password hashing | security |
+| hard_04 | OS command injection via shell=True | security |
+| hard_05 | Cross-module typo superuser vs super_user | logic |
+
+---
+
+## 📈 Baseline Scores (Meta Llama 3.1 8B)
+
+| Difficulty | Avg Score |
+|---|---|
+| Easy | 0.85 |
+| Medium | 0.72 |
+| Hard | 0.48 |
+| **Overall** | **0.68** |
 
 ---
 
 ## 🚀 Quickstart
 
-### 1. Installation
+### Run Locally
 ```bash
 git clone https://huggingface.co/spaces/raunit19/code-debugger-env
 cd code-debugger-env
 pip install -r requirements.txt
-```
-
-### 2. Run Local Server
-```bash
 export PYTHONPATH=$PYTHONPATH:.
 python server/app.py
 ```
 
+### Verify
+```bash
+curl http://localhost:7860/health
+# {"status": "ok"}
+```
+
 ---
 
-## 🤖 Reproduce Baseline
+## 🤖 Reproduce Baseline Evaluation
 
-Our baseline uses the required OpenAI-compatible client to evaluate **Meta Llama 3.1 8B**.
-
-### 1. Environment Variables
 ```bash
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-export HF_TOKEN="your_huggingface_token"
-export ENV_BASE_URL="http://localhost:7860" # Local or Space URL
-```
-
-### 2. Execute Inference
-The `inference.py` script produces structured logs to `stdout` for the Phase-2 evaluator.
-```bash
+export HF_TOKEN="your_token_here"
+export ENV_BASE_URL="http://localhost:7860"
 python inference.py
 ```
-**Logging Compliance:** The script outputs structured sequences of `[START]`, `[STEP]`, and `[END]` with 4-decimal precision for deterministic validator parsing.
-
----
-
-## 📂 Repository Layout
-
-*   `server/app.py`: FastAPI entry point with enriched `/metadata` and `/stats`.
-*   `environment.py`: Core OpenEnv logic with session management.
-*   `models.py`: Hardened Pydantic v2 data models.
-*   `grader.py`: Multi-layer regression oracle and security grader.
-*   `tasks.py`: Catalog of 13 debugging challenges.
-*   `inference.py`: Standardized agent evaluation script.
-*   `openenv.yaml`: OpenEnv manifest with observation and task schemas.
-
----
-
-Generated for the **Meta × PyTorch OpenEnv Hackathon @ Scaler**.
-Developer: [raunit19](https://huggingface.co/raunit19)

@@ -15,6 +15,11 @@ app = create_app(
     env_name="code-debugger-env"
 )
 
+@app.get("/health")
+def health():
+    """Health check endpoint required by Dockerfile HEALTHCHECK and inference.py."""
+    return {"status": "ok"}
+
 @app.get("/metadata")
 def metadata():
     """Metadata enrichment for the /metadata endpoint."""
