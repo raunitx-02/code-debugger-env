@@ -2,12 +2,12 @@ name: code-debugger-env
 version: "1.1.0"
 description: >
   A real-world Python code debugging environment where AI agents identify bugs 
-  and provide corrected code. Covers 13 tasks across 3 difficulty-tiered bug categories: 
+  and provide corrected code. Covers 15 tasks across 3 difficulty-tiered bug categories: 
   runtime errors, logic bugs, critical security vulnerabilities (SQL injection, OS command 
-  injection, weak hashing, unsafe eval), and mutable state bugs. Graders execute fixed code 
-  in sandboxed subprocesses for fully deterministic, reproducible scoring. Includes a 
-  Regression Test Oracle (failing+passing tests) for all 13 tasks and a Code Smell Penalty 
-  to discourage dangerous patterns.
+  injection, weak hashing, unsafe eval), mutable state bugs, and multi-file project bugs. 
+  Graders execute fixed code in sandboxed subprocesses for fully deterministic, reproducible 
+  scoring. Includes a Regression Test Oracle (failing+passing tests) for all 15 tasks and a 
+  Code Smell Penalty to discourage dangerous patterns.
 author: raunit19
 tags:
   - code-review
@@ -104,6 +104,12 @@ tasks:
   - id: hard_05
     difficulty: hard
     description: "Multi-file project simulation: fix cross-module dependency bug"
+  - id: project_easy_01
+    difficulty: easy
+    description: "Fix syntax error (= instead of ==) in api.py if-condition (multi-file project)"
+  - id: project_medium_01
+    difficulty: medium
+    description: "Fix syntax error (= instead of ==) in validator.py if-condition (multi-file project)"
 max_episode_steps: 5
 inference_timeout: 1200
 baseline_scores:

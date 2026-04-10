@@ -11,7 +11,7 @@ app_port: 7860
 # BugHunterRL: RL for Automated Code Debugging
 
 > **Submission for Meta × PyTorch OpenEnv Hackathon @ Scaler**  
-> 13 real-world Python debugging tasks • Regression Test Oracle • Code Smell AST Penalty  
+> 15 real-world Python debugging tasks • Regression Test Oracle • Code Smell AST Penalty  
 > Deployed on HF Spaces • FastAPI + Docker • OpenEnv Core 0.2.1
 
 [![HF Space](https://img.shields.io/badge/🤗%20HuggingFace-Space-blue)](https://huggingface.co/spaces/raunit19/code-debugger-env)
@@ -30,7 +30,7 @@ BugHunterRL is a production-grade OpenEnv environment for training and evaluatin
 | **Regression Test Oracle** | Every task has failing_tests (must fix) + passing_tests (must not break) |
 | **Code Smell AST Penalty** | -40% score if agent introduces eval(), bare except, hardcoded secrets, or infinite loops |
 | **Security Grader** | Detects SQL injection, OS command injection, and weak hashing |
-| **Multi-File Simulation** | Hard tasks simulate cross-module dependency bugs |
+| **Multi-File Project Tasks** | 3 tasks simulate real cross-module bugs across two Python files (api.py/auth.py, calculator.py/validator.py) — agents see both files in a single `code_snippet` and must fix the bug in the correct file |
 | **Dynamic Randomization** | 30% chance of randomized task variant to prevent memorization |
 
 ---
@@ -41,8 +41,8 @@ BugHunterRL is a production-grade OpenEnv environment for training and evaluatin
 |---|---|
 | **API Type** | RESTful OpenAI-compatible (FastAPI) |
 | **SDK** | openenv-core==0.2.1 |
-| **Task Count** | 13 Graded Tasks |
-| **Difficulty Tiers** | Easy (4), Medium (4), Hard (5) |
+| **Task Count** | 15 Graded Tasks |
+| **Difficulty Tiers** | Easy (5), Medium (5), Hard (5) |
 | **Reward Range** | Strictly (0.001, 0.999) — Phase-2 validator compliant |
 | **Deployment** | Docker-based Hugging Face Space |
 | **Max Episode Steps** | 5 (all difficulties) |
@@ -170,21 +170,23 @@ BugHunterRL is designed as a meaningful RL benchmark that tests rigorous reasoni
 
 ## 🗂️ Task Catalog
 
-### Easy (4 tasks)
+### Easy (5 tasks)
 | Task ID | Bug | Type |
 |---|---|---|
 | easy_01 | Off-by-one in list doubler | logic |
 | easy_02 | IndexError in palindrome checker | runtime |
 | easy_03 | Missing assignment (count+1 vs count+=1) | logic |
 | easy_04 | Product initialized to 0 instead of 1 | logic |
+| project_easy_01 | `=` instead of `==` in api.py if-condition (multi-file) | syntax |
 
-### Medium (4 tasks)
+### Medium (5 tasks)
 | Task ID | Bug | Type |
 |---|---|---|
 | medium_01 | Infinite recursion (lst not sliced) | runtime |
 | medium_02 | Float division in binary search | runtime |
 | medium_03 | Wrong return variable | logic |
-| medium_04 | Wrong return variable | logic |
+| medium_04 | Wrong return variable (seen vs duplicates) | logic |
+| project_medium_01 | `=` instead of `==` in validator.py if-condition (multi-file) | syntax |
 
 ### Hard (5 tasks)
 | Task ID | Bug | Type |
@@ -193,7 +195,7 @@ BugHunterRL is designed as a meaningful RL benchmark that tests rigorous reasoni
 | hard_02 | SQL Injection via f-string | security |
 | hard_03 | Weak MD5 password hashing | security |
 | hard_04 | OS command injection via shell=True | security |
-| hard_05 | Cross-module typo superuser vs super_user | logic |
+| hard_05 | Cross-module typo superuser vs super_user (multi-file) | logic |
 
 ---
 
@@ -208,6 +210,32 @@ BugHunterRL is designed as a meaningful RL benchmark that tests rigorous reasoni
 
 ---
 
+## 🗂️ File Structure
+
+```
+code-debugger-env/
+├── __init__.py          # Package root — exports CodeDebug* models
+├── README.md
+├── client.py            # Typed HTTP client (no server imports needed)
+├── models.py            # Pydantic models: Action, Observation, State
+├── inference.py         # Hackathon evaluation script
+├── openenv.yaml         # OpenEnv spec manifest
+├── pyproject.toml
+├── requirements.txt
+├── Dockerfile
+├── tests/
+│   ├── __init__.py
+│   └── test_environment.py   # Direct (no-HTTP) pytest suite
+└── server/
+    ├── __init__.py           # Exports CodeDebuggerEnvironment
+    ├── app.py                # FastAPI app (uvicorn entry point)
+    ├── environment.py        # OpenEnv Environment subclass
+    ├── grader.py             # Regression oracle + code smell grader
+    └── tasks.py              # All 15 task definitions
+```
+
+---
+
 ## 🚀 Quickstart
 
 ### Run Locally
@@ -216,13 +244,46 @@ git clone https://huggingface.co/spaces/raunit19/code-debugger-env
 cd code-debugger-env
 pip install -r requirements.txt
 export PYTHONPATH=$PYTHONPATH:.
-python server/app.py
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
 ### Verify
 ```bash
 curl http://localhost:7860/health
-# {"status": "healthy"}
+# {"status": "ok"}
+```
+
+---
+
+## 🧪 Running Tests
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
+
+Tests run directly against `CodeDebuggerEnvironment` — no running server required.
+
+---
+
+## 🐍 Client Usage
+
+```python
+from client import CodeDebugEnv
+from models import CodeDebugAction
+
+# Connect to a local server
+env = CodeDebugEnv(base_url="http://localhost:7860")
+
+# Or connect to the deployed HF Space
+env = CodeDebugEnv.from_huggingface("raunit19/code-debugger-env")
+
+obs = env.reset()
+print(obs.task_description)
+
+action = CodeDebugAction(bug_line=3, bug_type="logic", fixed_code="...")
+result = env.step(action)
+print(result.reward, result.done)
 ```
 
 ---
@@ -230,7 +291,7 @@ curl http://localhost:7860/health
 ## 🤖 Reproduce Baseline Evaluation
 
 ```bash
-export API_BASE_URL="https://router.huggingface.co/v1"
+export API_BASE_URL="https://api-inference.huggingface.co/v1"
 export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 export HF_TOKEN="your_token_here"
 export ENV_BASE_URL="http://localhost:7860"
@@ -251,7 +312,7 @@ Follow these steps to quickly verify the environment and baseline evaluation.
 4. Run the baseline evaluation script locally:
 
 ```bash
-export API_BASE_URL="https://router.huggingface.co/v1"
+export API_BASE_URL="https://api-inference.huggingface.co/v1"
 export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 export HF_TOKEN="your_huggingface_token"
 python inference.py

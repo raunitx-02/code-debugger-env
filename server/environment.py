@@ -5,8 +5,8 @@ Score range compliant: 0.001 to 0.999.
 """
 from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
-from tasks import TASKS, get_randomized_task
-from grader import grade, normalize_score
+from .tasks import TASKS, get_randomized_task
+from .grader import grade, normalize_score
 from typing import Optional
 import random
 import uuid
@@ -57,7 +57,6 @@ class CodeDebuggerEnvironment(Environment):
         self._current_task = task
         self._state = CodeDebugState(
             episode_id=ep_id,
-            step_count=0,
             task_id=task["task_id"],
             difficulty=task["difficulty"],
             max_attempts=5 if task.get("difficulty") == "hard" else 3,

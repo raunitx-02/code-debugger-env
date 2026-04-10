@@ -1,1 +1,6 @@
-# Empty init file to treat server/ as a package for OpenEnv entry points.
+"""
+server package for BugHunterRL environment.
+"""
+from .environment import CodeDebuggerEnvironment
+
+__all__ = ["CodeDebuggerEnvironment"]

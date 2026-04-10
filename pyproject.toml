@@ -27,10 +27,9 @@ packages = ["."]
 include = [
     "__init__.py",
     "models.py",
-    "environment.py",
-    "grader.py",
-    "tasks.py",
+    "client.py",
     "server/*.py",
+    "tests/*.py",
     "inference.py",
     "openenv.yaml",
     "README.md",

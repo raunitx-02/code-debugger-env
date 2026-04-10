@@ -1,7 +1,7 @@
 import uvicorn
 from openenv_core.env_server import create_app
 from models import CodeDebugAction, CodeDebugObservation
-from environment import CodeDebuggerEnvironment
+from .environment import CodeDebuggerEnvironment
 
 # Initialize the environment instance
 env = CodeDebuggerEnvironment()
@@ -38,9 +38,9 @@ def metadata():
         "version": "1.1.0",
         "description": "BugHunterRL: RL environment for automated code debugging",
         "tasks": {
-            "total": 13,
-            "easy": 4,
-            "medium": 4,
+            "total": 15,
+            "easy": 5,
+            "medium": 5,
             "hard": 5
         },
         "features": ["regression_oracle", "code_smell_penalty", "multi_file_simulation"],

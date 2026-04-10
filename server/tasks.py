@@ -353,7 +353,83 @@ def delete_resource(username, resource_id):
         "passing_tests": [
             {"name": "test_guest_denied", "code": "assert delete_resource('guest', 101) == 'Permission denied.', 'Guest should be denied'"},
         ],
-    }
+    },
+
+    # ── PROJECT EASY 1 (Multi-File Syntax Bug) ─────────────────────────────────
+    {
+        "task_id": "project_easy_01",
+        "difficulty": "easy",
+        "code_snippet": '''### FILE: api.py ###
+from auth import get_user_role
+
+def get_dashboard(user_id):
+    role = get_user_role(user_id)
+    if role = "admin":
+        return {"access": "full"}
+    return {"access": "limited"}
+
+### FILE: auth.py ###
+def get_user_role(user_id):
+    roles = {1: "admin", 2: "viewer"}
+    return roles.get(user_id, "viewer")''',
+        "task_description": (
+            "Fix the syntax error in api.py. The if condition uses "
+            "= (assignment) instead of == (comparison). "
+            "auth.py is correct and must not be changed."
+        ),
+        "test_hint": "api.py must use == not = in the if condition",
+        "correct_line": 4,
+        "correct_bug_type": "syntax",
+        "failing_tests": [
+            {
+                "name": "test_syntax_valid",
+                "code": "import ast; ast.parse(fixed_code.split('### FILE: auth.py ###')[0])",
+            },
+        ],
+        "passing_tests": [
+            {
+                "name": "test_equality_operator",
+                "code": "assert '==' in fixed_code, 'must use == not ='",
+            },
+        ],
+    },
+
+    # ── PROJECT MEDIUM 1 (Multi-File Syntax Bug) ───────────────────────────────
+    {
+        "task_id": "project_medium_01",
+        "difficulty": "medium",
+        "code_snippet": '''### FILE: calculator.py ###
+from validator import validate_inputs
+
+def safe_divide(a, b):
+    validate_inputs(a, b)
+    return a / b
+
+### FILE: validator.py ###
+def validate_inputs(a, b):
+    if b = 0:
+        raise ValueError("Cannot divide by zero")''',
+        "task_description": (
+            "Fix the syntax error in validator.py. The condition "
+            "uses = (assignment) instead of == (comparison). "
+            "calculator.py is correct."
+        ),
+        "test_hint": "validator.py must use == not = in the if condition",
+        "correct_line": 2,
+        "correct_bug_type": "syntax",
+        "failing_tests": [
+            {
+                "name": "test_validator_syntax",
+                "code": "import ast; ast.parse(fixed_code.split('### FILE: calculator.py ###')[0].replace('### FILE: validator.py ###',''))",
+            },
+        ],
+        "passing_tests": [
+            {
+                "name": "test_has_equality",
+                "code": "assert 'b == 0' in fixed_code or 'b==0' in fixed_code, 'must use =='",
+            },
+        ],
+    },
 ]
 
 # STEP 3: Safe Randomized Task Selection
