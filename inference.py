@@ -272,6 +272,10 @@ def main():
         print(f"[DEBUG] Running {NUM_EPISODES} episodes...", file=sys.stderr, flush=True)
 
         for ep_num in range(1, NUM_EPISODES + 1):
+            if time.time() - start_time > 1080:  # 18 minutes in seconds
+                print("[DEBUG] Time limit approaching, stopping early.", file=sys.stderr, flush=True)
+                break
+                
             print(f"[DEBUG] Episode {ep_num}/{NUM_EPISODES}", file=sys.stderr, flush=True)
             ep_result = run_episode(llm_client, ENV_BASE_URL, ep_num)
             results.append(ep_result)
