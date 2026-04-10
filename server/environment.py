@@ -1,7 +1,7 @@
 """
 environment.py — BugHunterRL Environment
 Enhanced with multi-file project simulation and dynamic BugGeneration.
-Score range compliant: 0.001 to 0.999.
+Score range compliant: 0.05 to 0.95.
 """
 from openenv_core.env_server import Environment
 from models import CodeDebugAction, CodeDebugObservation, CodeDebugState
@@ -60,10 +60,10 @@ class CodeDebuggerEnvironment(Environment):
             task_id=task["task_id"],
             difficulty=task["difficulty"],
             max_attempts=5 if task.get("difficulty") == "hard" else 3,
-            best_score=0.001,
+            best_score=0.05,
         )
 
-        # FIX 1: Return 0.001 (strictly between 0 and 1) for reset observation
+        # FIX 1: Return 0.05 (strictly between 0 and 1) for reset observation
         return CodeDebugObservation(
             task_id=task["task_id"],
             code_snippet=task["code_snippet"],
@@ -71,10 +71,10 @@ class CodeDebuggerEnvironment(Environment):
             test_hint=task["test_hint"],
             feedback="",
             attempt_number=1,
-            score_so_far=0.001,
+            score_so_far=0.05,
             difficulty=task["difficulty"],
             done=False,
-            reward=0.001,
+            reward=0.05,
             metadata={"task_id": task["task_id"]}
         )
 

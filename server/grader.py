@@ -1,6 +1,6 @@
 """
 grader.py — Execution-based grader with Code Smell Penalty + Regression Test Oracle.
-Mandatory Score Range: 0.001 to 0.999 (strictly between 0 and 1).
+Mandatory Score Range: 0.05 to 0.95 (strictly between 0 and 1).
 """
 import ast
 import re
@@ -11,8 +11,8 @@ from typing import Tuple, List, Dict, Any
 
 # STEP 3 — Add score normalization
 def normalize_score(score: float) -> float:
-    """Clamps score strictly between 0 and 1 (0.001 to 0.999)."""
-    return max(0.001, min(0.999, score))
+    """Clamps score strictly between 0 and 1 (0.05 to 0.95)."""
+    return max(0.05, min(0.95, score))
 
 
 # ── Code Smell Checker ──────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ def _run_single_test(submitted_code: str, test_code: str, extra_globals: dict = 
 def _compute_regression_reward(
     fixed_code: str, task: dict
 ) -> Tuple[float, List[str], List[str]]:
-    """Regression oracle: reward = gain - loss, clamped to (0.001, 0.999)."""
+    """Regression oracle: reward = gain - loss, clamped to (0.05, 0.95)."""
     failing: List[dict] = task.get("failing_tests", [])
     passing: List[dict] = task.get("passing_tests", [])
 
@@ -157,7 +157,7 @@ def _compute_regression_reward(
             tests_broken.append(t["name"])
 
     gain = len(tests_fixed) / max(1, len(failing))
-    gain = max(0.001, min(0.999, gain))
+    gain = max(0.05, min(0.95, gain))
 
     loss = len(tests_broken) / max(1, len(passing))
     loss = max(0.0, min(0.998, loss))
@@ -192,12 +192,12 @@ def grade(
     bug_type: str,
 ) -> Tuple[float, str, dict]:
     """Grade the agent's fix. Returns (score, feedback_str, info_dict)."""
-    def _clamp(s): return max(0.001, min(0.999, float(s)))
+    def _clamp(s): return max(0.05, min(0.95, float(s)))
 
     try:
         if not fixed_code or not fixed_code.strip():
-            # STEP 2: Minimum 0.001 floor
-            return 0.001, "No fixed code provided.", {
+            # STEP 2: Minimum 0.05 floor
+            return 0.05, "No fixed code provided.", {
                 "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
             }
 
@@ -206,8 +206,8 @@ def grade(
             base_reward, tests_fixed, tests_broken = _compute_regression_reward(fixed_code, task)
             smells = check_code_smells(fixed_code)
 
-            # FIX 9: Smell penalty ensures score >= 0.001
-            final_score = max(0.001, base_reward * 0.6) if (smells and base_reward > 0.001) else base_reward
+            # FIX 9: Smell penalty ensures score >= 0.05
+            final_score = max(0.05, base_reward * 0.6) if (smells and base_reward > 0.05) else base_reward
             
             # STEP 3: Normalize and round
             final_score = round(normalize_score(final_score), 4)
@@ -234,7 +234,7 @@ def grade(
         # ── Legacy subprocess grader (original tasks) ──────────────────────
         test_cases = task.get("test_cases", [])
         if not test_cases:
-            return 0.001, "No test cases defined.", {
+            return 0.05, "No test cases defined.", {
                 "code_smells": [], "tests_fixed": [], "tests_broken": [], "regression_penalty": False
             }
 
@@ -271,13 +271,13 @@ assert _result == {repr(expected)}, f"Got {{_result!r}}"
                 else:
                     feedback_lines.append(f"✗ Required pattern missing: {required_pattern}") 
 
-        base_score = (passed / total) * 0.7 if total > 0 else 0.001
+        base_score = (passed / total) * 0.7 if total > 0 else 0.05
         correct_line = task.get("correct_line", 0)
-        line_bonus = 0.15 if correct_line and abs(bug_line - correct_line) <= 2 else 0.001
+        line_bonus = 0.15 if correct_line and abs(bug_line - correct_line) <= 2 else 0.05
         
         smells = check_code_smells(fixed_code)
         final_score = base_score + line_bonus
-        if smells and final_score > 0.001:
+        if smells and final_score > 0.05:
             final_score *= 0.6
 
         # STEP 3: Normalize and round
@@ -285,4 +285,4 @@ assert _result == {repr(expected)}, f"Got {{_result!r}}"
         return _clamp(final_score), f"Score: {final_score:.4f}", {"code_smells": smells, "done_signal": passed == total}
 
     except Exception as e:
-        return 0.001, f"Grader error: {e}", {"code_smells": [], "regression_penalty": False}
+        return 0.05, f"Grader error: {e}", {"code_smells": [], "regression_penalty": False}

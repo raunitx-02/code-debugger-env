@@ -57,8 +57,8 @@ def test_reset_returns_observation():
     assert obs.done is False, "done must be False immediately after reset()"
 
     # Score range compliance: strictly between 0 and 1
-    assert obs.reward >= 0.001, f"reward too low: {obs.reward}"
-    assert obs.reward <= 0.999, f"reward too high: {obs.reward}"
+    assert obs.reward >= 0.05, f"reward too low: {obs.reward}"
+    assert obs.reward <= 0.95, f"reward too high: {obs.reward}"
 
 
 def test_step_returns_observation():
@@ -68,8 +68,8 @@ def test_step_returns_observation():
 
     obs = env.step(_DUMMY_ACTION)
 
-    assert obs.reward >= 0.001, f"reward below floor: {obs.reward}"
-    assert obs.reward <= 0.999, f"reward above ceiling: {obs.reward}"
+    assert obs.reward >= 0.05, f"reward below floor: {obs.reward}"
+    assert obs.reward <= 0.95, f"reward above ceiling: {obs.reward}"
     assert obs.attempt_number == 2, (
         f"Expected attempt_number == 2 after one step, got {obs.attempt_number}"
     )
@@ -85,8 +85,8 @@ def test_state_after_reset():
     # task_id must be populated
     assert state.task_id != "", "state.task_id must be set after reset()"
     # best_score starts at the floor value
-    assert state.best_score == 0.001, (
-        f"Expected best_score == 0.001 after reset, got {state.best_score}"
+    assert state.best_score == 0.05, (
+        f"Expected best_score == 0.05 after reset, got {state.best_score}"
     )
 
 
@@ -120,15 +120,15 @@ def test_difficulty_levels_present():
 
 
 def test_score_range_compliance():
-    """score_so_far from reset() must be within (0.001, 0.999) across multiple seeds."""
+    """score_so_far from reset() must be within (0.05, 0.95) across multiple seeds."""
     env = _make_env()
 
     for seed in (0, 42, 99):
         obs = env.reset(seed=seed)
-        assert obs.score_so_far >= 0.001, (
+        assert obs.score_so_far >= 0.05, (
             f"seed={seed}: score_so_far below floor: {obs.score_so_far}"
         )
-        assert obs.score_so_far <= 0.999, (
+        assert obs.score_so_far <= 0.95, (
             f"seed={seed}: score_so_far above ceiling: {obs.score_so_far}"
         )
 

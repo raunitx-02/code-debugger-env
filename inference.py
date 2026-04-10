@@ -79,8 +79,8 @@ def log_step(
     score_so_far: float,
 ) -> None:
     """Emit [STEP] line with step, action, reward, done, score_so_far as JSON."""
-    safe_reward      = max(0.001, min(0.999, float(reward)))
-    safe_score_so_far = max(0.001, min(0.999, float(score_so_far)))
+    safe_reward      = max(0.05, min(0.95, float(reward)))
+    safe_score_so_far = max(0.05, min(0.95, float(score_so_far)))
     payload = {
         "step":         step,
         "action":       action,
@@ -93,7 +93,7 @@ def log_step(
 
 def log_end(task_id: str, final_score: float, steps_taken: int, difficulty: str) -> None:
     """Emit [END] line with task_id, final_score, steps_taken, difficulty as JSON."""
-    safe_score = max(0.001, min(0.999, float(final_score)))
+    safe_score = max(0.05, min(0.95, float(final_score)))
     payload = {
         "task_id":     task_id,
         "final_score": round(safe_score, 4),
@@ -165,7 +165,7 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
     log_start(task_id=task_id, difficulty=difficulty, episode_id=episode_id)
 
     step_rewards: List[float] = []
-    best_score  = 0.001
+    best_score  = 0.05
     total_steps = 0
     last_error  = None
     max_attempts = 5  # Matches openenv.yaml max_episode_steps: 5
@@ -198,7 +198,7 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
             step_result = step_resp.json()
 
             obs          = step_result.get("observation", {})
-            reward       = float(step_result.get("reward", 0.001))
+            reward       = float(step_result.get("reward", 0.05))
             done         = step_result.get("done", False)
             score_so_far = float(obs.get("score_so_far", reward))
 
