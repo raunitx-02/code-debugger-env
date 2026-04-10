@@ -113,7 +113,18 @@ tasks:
 max_episode_steps: 5
 inference_timeout: 1200
 baseline_scores:
-  easy_avg: 0.85
-  medium_avg: 0.72
-  hard_avg: 0.48
-  overall_avg: 0.68
+  easy_01: 0.95
+  easy_02: 0.90
+  easy_03: 0.95
+  easy_04: 0.90
+  medium_01: 0.80
+  medium_02: 0.70
+  medium_03: 0.80
+  medium_04: 0.75
+  hard_01: 0.50
+  hard_02: 0.40
+  hard_03: 0.60
+  hard_04: 0.45
+  hard_05: 0.50
+  project_easy_01: 0.85
+  project_medium_01: 0.65
