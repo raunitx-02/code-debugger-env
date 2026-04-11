@@ -163,5 +163,8 @@ class CodeDebugEnv:
 
             env = CodeDebugEnv.from_huggingface("raunit19/code-debugger-env")
         """
-        url = f"https://huggingface.co/spaces/{repo_id}"
+        if "/" not in repo_id:
+            raise ValueError("repo_id must be in the format 'user/space-name'")
+        owner, space_name = repo_id.split("/", 1)
+        url = f"https://{owner.lower()}-{space_name.lower()}.hf.space"
         return cls(base_url=url)

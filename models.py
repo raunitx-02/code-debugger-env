@@ -4,7 +4,7 @@ Hardened for openenv_core 0.2.1+ using Pydantic BaseModel.
 """
 from typing import Optional, Dict, Any
 from pydantic import Field, field_validator
-from openenv_core.env_server.interfaces import Action, Observation, State
+from openenv.core.env_server.interfaces import Action, Observation, State
 
 class CodeDebugAction(Action):
     """

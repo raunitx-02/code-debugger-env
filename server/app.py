@@ -1,5 +1,5 @@
 import uvicorn
-from openenv_core.env_server import create_app
+from openenv.core.env_server import create_app
 from models import CodeDebugAction, CodeDebugObservation
 from .environment import CodeDebuggerEnvironment
 
