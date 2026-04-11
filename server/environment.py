@@ -60,7 +60,7 @@ class CodeDebuggerEnvironment(Environment):
             task_id=task["task_id"],
             difficulty=task["difficulty"],
             max_attempts=5 if task.get("difficulty") == "hard" else 3,
-            best_score=0.05,
+            best_score=0.001,
         )
 
         # FIX 1: Return 0.05 (strictly between 0 and 1) for reset observation
@@ -71,10 +71,10 @@ class CodeDebuggerEnvironment(Environment):
             test_hint=task["test_hint"],
             feedback="",
             attempt_number=1,
-            score_so_far=0.05,
+            score_so_far=0.001,
             difficulty=task["difficulty"],
             done=False,
-            reward=0.05,
+            reward=0.001,
             metadata={"task_id": task["task_id"]}
         )
 
@@ -88,7 +88,10 @@ class CodeDebuggerEnvironment(Environment):
         if self._state is None or self._current_task is None:
             self.reset()
 
-        self._state.step_count += 1
+        try:
+            self._state.step_count += 1
+        except AttributeError:
+            object.__setattr__(self._state, 'step_count', 1)
 
         # Execution-based grading via grader.py
         score, feedback, info = grade(

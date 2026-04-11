@@ -38,10 +38,10 @@ class CodeDebugObservation(Observation):
     @field_validator("reward", "score_so_far", mode="before")
     @classmethod
     def clamp_range(cls, v: Any) -> float:
-        """Enforce 0 < score < 1 (strictly between 0 and 1)."""
         try:
             val = float(v)
-            return max(0.05, min(0.95, val))
+            clamped = max(0.001, min(0.999, val))
+            return round(clamped, 4)
         except (ValueError, TypeError):
             return 0.05
 
@@ -56,3 +56,4 @@ class CodeDebugState(State):
     max_attempts: int = 3
     best_score: float = 0.05
     current_task_index: int = 0
+    step_count: int = 0

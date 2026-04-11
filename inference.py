@@ -61,44 +61,41 @@ Example Output:
 
 # ── Logging functions — strict hackathon format ───────────────────────────────
 
+def _safe_score(v: float) -> float:
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return 0.001
+    if v <= 0.0:
+        return 0.001
+    if v >= 1.0:
+        return 0.999
+    return round(v, 4)
+
 def log_start(task_id: str, difficulty: str, episode_id: str) -> None:
-    """Emit [START] line with task_id, difficulty, episode_id as JSON."""
     payload = {
-        "task_id":    task_id,
+        "task_id": task_id,
         "difficulty": difficulty,
         "episode_id": episode_id,
     }
     print(f"[START] {json.dumps(payload)}", flush=True)
 
-
-def log_step(
-    step: int,
-    action: dict,
-    reward: float,
-    done: bool,
-    score_so_far: float,
-) -> None:
-    """Emit [STEP] line with step, action, reward, done, score_so_far as JSON."""
-    safe_reward      = max(0.05, min(0.95, float(reward)))
-    safe_score_so_far = max(0.05, min(0.95, float(score_so_far)))
+def log_step(step: int, action: dict, reward: float, done: bool, score_so_far: float) -> None:
     payload = {
-        "step":         step,
-        "action":       action,
-        "reward":       round(safe_reward, 4),
-        "done":         done,
-        "score_so_far": round(safe_score_so_far, 4),
+        "step": step,
+        "action": action,
+        "reward": _safe_score(reward),
+        "done": done,
+        "score_so_far": _safe_score(score_so_far),
     }
     print(f"[STEP] {json.dumps(payload)}", flush=True)
 
-
 def log_end(task_id: str, final_score: float, steps_taken: int, difficulty: str) -> None:
-    """Emit [END] line with task_id, final_score, steps_taken, difficulty as JSON."""
-    safe_score = max(0.05, min(0.95, float(final_score)))
     payload = {
-        "task_id":     task_id,
-        "final_score": round(safe_score, 4),
+        "task_id": task_id,
+        "final_score": _safe_score(final_score),
         "steps_taken": steps_taken,
-        "difficulty":  difficulty,
+        "difficulty": difficulty,
     }
     print(f"[END] {json.dumps(payload)}", flush=True)
 
@@ -165,7 +162,7 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
     log_start(task_id=task_id, difficulty=difficulty, episode_id=episode_id)
 
     step_rewards: List[float] = []
-    best_score  = 0.05
+    best_score  = 0.001
     total_steps = 0
     last_error  = None
     max_attempts = 5  # Matches openenv.yaml max_episode_steps: 5
@@ -198,13 +195,13 @@ def run_episode(llm: OpenAI, base_url: str, episode_num: int) -> dict:
             step_result = step_resp.json()
 
             obs          = step_result.get("observation", {})
-            reward       = float(step_result.get("reward", 0.05))
+            reward       = _safe_score(float(step_result.get("reward", 0.001)))
             done         = step_result.get("done", False)
-            score_so_far = float(obs.get("score_so_far", reward))
+            score_so_far = _safe_score(float(obs.get("score_so_far", reward)))
 
             total_steps += 1
             step_rewards.append(reward)
-            best_score = max(best_score, reward)
+            best_score = _safe_score(max(best_score, reward))
 
             log_step(
                 step=total_steps,
