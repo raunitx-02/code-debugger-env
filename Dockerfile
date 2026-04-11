@@ -27,3 +27,5 @@ ENV PYTHONPATH=/app
 
 # Run the server
 CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
+
+# Force rebuild: fix boundary clamping v2
